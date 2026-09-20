@@ -5,7 +5,7 @@
   "description": "A tiny Curry–Howard proof assistant kernel in TypeScript",
   "main": "dist/src/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "build:web": "vite build",
     "dev:web": "vite --host 127.0.0.1",
     "test": "npm run build && node --test dist/tests/*.test.js dist/tests/kernel/*.test.js dist/tests/elaborator/*.test.js dist/tests/parser/*.test.js",
