@@ -89,7 +89,7 @@ class Parser {
     if (token.kind === 'number') {
       this.position += 1;
       const value = Number(token.text);
-      if (!Number.isSafeInteger(value)) throw this.error(`Natural literal is too large: ${token.text}`);
+      if (!Number.isSafeInteger(value)) throw new ParseError(`Natural literal is too large: ${token.text} at position ${token.position}`);
       let result: SurfaceTerm = surfaceZero;
       for (let index = 0; index < value; index += 1) result = surfaceSucc(result);
       return result;
