@@ -48,7 +48,7 @@ function renderProofCourse(): void {
   function renderTactics(): string {
     const suggestions = engine.tacticSuggestions();
     const available = suggestions.filter((tactic) => tactic.id !== "exact" && tactic.id !== "apply");
-    const otherIds = ["exact", "apply", "rewrite", "induction"];
+    const otherIds = ["exact", "apply", "rewrite", "induction", "symmetry"];
     const other = otherIds.map((id) => TACTICS.find((tactic) => tactic.id === id)).filter((tactic): tactic is NonNullable<typeof tactic> => !!tactic);
     const theoremItems = REAL_THEOREM_LIST.map((theorem) => `<button class="tactic-other-item theorem-item" type="button" data-theorem="${theorem.id}" title="Use theorem ${theorem.id}"><code>${theorem.label}</code><span>Use</span></button>`).join("");
     return `<aside class="tactic-panel" aria-label="Proof tools"><div class="card-title">Available Tactics</div><div class="tactic-suggestions">${available.length ? available.map((tactic) => `<button class="tactic-suggestion" type="button" data-tactic="${tactic.syntax}" title="${tactic.description}"><code>${tactic.syntax.trim()}</code><span>${tactic.description}</span></button>`).join("") : `<p class="muted">No automatic suggestions.</p>`}</div><div class="tactic-other"><div class="card-title">Other Tactics</div>${other.map((tactic) => `<button class="tactic-other-item" type="button" data-tactic="${tactic.syntax}" title="${tactic.description}"><code>${tactic.label}</code></button>`).join("")}</div><div class="tactic-other theorem-panel"><div class="card-title">Theorems</div><div class="theorem-list">${theoremItems}</div></div></aside>`;

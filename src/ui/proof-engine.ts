@@ -190,6 +190,11 @@ function canRfl(goal: import("../proof/state").Goal): boolean {
   const type = whnf(goal.type);
   return type.kind === "Eq" && definitionalEqual(type.left, type.right);
 }
+function canSuggestSymmetry(goal: import("../proof/state").Goal): boolean {
+  const type = whnf(goal.type);
+  // Reflexive goals already offer rfl; recommend symmetry when it changes orientation.
+  return type.kind === "Eq" && !definitionalEqual(type.left, type.right);
+}
 function canAssumption(goal: import("../proof/state").Goal): boolean {
   return goal.context.some((entry, index) => definitionalEqual(shift(entry.type, goal.context.length - index), goal.type));
 }
@@ -204,6 +209,7 @@ function canRewrite(goal: import("../proof/state").Goal): boolean {
 export const TACTICS: TacticDescriptor[] = [
   { id: "intro", label: "intro", syntax: "intro", description: "Introduce a proposition into the local context.", canApply: canIntro },
   { id: "rfl", label: "rfl", syntax: "rfl", description: "Close a definitionally equal equality.", canApply: canRfl },
+  { id: "symmetry", label: "symmetry", syntax: "symmetry", description: "Swap the two sides of the equality goal.", canApply: canSuggestSymmetry },
   { id: "assumption", label: "assumption", syntax: "assumption", description: "Use a matching local hypothesis.", canApply: canAssumption },
   { id: "induction", label: "induction", syntax: "induction ", description: "Perform induction on the newest Nat variable.", canApply: canInduction },
   { id: "rewrite", label: "rewrite", syntax: "rewrite ", description: "Rewrite the goal using an equality hypothesis.", canApply: canRewrite },
@@ -269,6 +275,10 @@ export class RealProofEngine implements ProofEngine {
         case "rfl":
           if (argument) throw new TacticError("rfl does not take an argument");
           this.session = this.session.rfl();
+          break;
+        case "symmetry":
+          if (argument) throw new TacticError("symmetry does not take an argument");
+          this.session = this.session.symmetry();
           break;
         case "assumption":
           if (argument) throw new TacticError("assumption does not take an argument");

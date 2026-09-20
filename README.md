@@ -515,3 +515,19 @@ git diff --check  -> success
 ```
 
 The Kernel remains independent of Chapter, Exercise, UI, and tactic metadata.
+
+## Equality symmetry
+
+Use `symmetry` to swap the two sides of the focused equality goal. For example,
+with `a b : A` and `h : b = a` in the context, solve `a = b` with:
+
+```text
+symmetry
+assumption
+```
+
+The command takes no arguments and is also available under **Other Tactics**.
+It is suggested automatically for equalities whose endpoints are not already
+definitionally equal. Other pending goals and local hypotheses are preserved.
+The generated proof uses the existing `EqRec` primitive and is checked by the
+Kernel; symmetry works for arbitrary equality types without adding a Kernel rule.

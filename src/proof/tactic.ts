@@ -1,6 +1,6 @@
 import { check, infer, show } from '../kernel/typecheck';
 import { definitionalEqual, normalize, shift, whnf } from '../kernel/reduction';
-import { Term, Nat, Zero, app, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
+import { Term, Nat, Zero, app, eq, eqRec, lambda, natRec, pi, refl, succ, variable } from '../syntax/ast';
 import { Context, Goal, GoalId, ProofState, goal, proofState } from './state';
 import { MetaContext } from './metavariable/meta';
 import { UnificationError, UnificationTerm, substituteUnification, toCoreTerm, unify } from './unification';
@@ -182,6 +182,35 @@ export class TacticSession {
     if (type.kind !== 'Eq') throw new TacticError(`rfl expected an equality goal, found ${show(type)}`);
     if (!definitionalEqual(type.left, type.right)) throw new TacticError(`rfl requires definitionally equal endpoints: ${show(type.left)} and ${show(type.right)}`);
     return this.exact(refl(type.type, type.left));
+  }
+
+  symmetry(): TacticSession {
+    const hole = this.firstHole();
+    const type = whnf(hole.goal.type);
+    if (type.kind !== 'Eq') throw new TacticError(`symmetry expected an equality goal, found ${show(type)}`);
+
+    const reversedType = eq(type.type, type.right, type.left);
+    // Given h : b = a, transport refl b along h with motive x => x = b.
+    // The explicit proof argument introduces one binder around the EqRec.
+    const motive = lambda(type.type, eq(shift(type.type, 1), variable(0), shift(type.right, 1)));
+    const reverseProof = lambda(reversedType, eqRec(
+      shift(motive, 1),
+      refl(shift(type.type, 1), shift(type.right, 1)),
+      shift(type.right, 1),
+      shift(type.left, 1),
+      variable(0),
+    ));
+    try { check(contextTypes(hole.goal.context), reverseProof, pi(reversedType, shift(hole.goal.type, 1))); }
+    catch (error) { throw new TacticError(error instanceof Error ? error.message : String(error)); }
+
+    const childGoal = goal(hole.goal.context, reversedType, hole.goal.caseName);
+    const child = { id: childGoal.id!, goal: childGoal, depth: hole.depth };
+    const root = replaceNode(this.root, hole.id, {
+      kind: 'app',
+      fn: { kind: 'term', term: reverseProof, depth: hole.depth },
+      arg: { kind: 'hole', id: child.id },
+    });
+    return this.withReplacement(hole.id, [child], root);
   }
 
   rewrite(equalityProof: Term): TacticSession {
