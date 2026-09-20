@@ -44,7 +44,7 @@ function initialState(theorem: MockTheorem): ProofStateView { return cloneMockSt
 
 export class MockProofEngine implements ProofEngine {
   private state = initialState(MOCK_THEOREMS.n_plus_zero);
-  loadTheorem(id: string): ProofStateView { const theorem = MOCK_THEOREMS[id] ?? MOCK_THEOREMS.n_plus_zero; this.state = initialState(theorem); return cloneMockState(this.state); }
+  loadTheorem(id: string): ProofStateView { const theorem = Object.hasOwn(MOCK_THEOREMS, id) ? MOCK_THEOREMS[id] : MOCK_THEOREMS.n_plus_zero; this.state = initialState(theorem); return cloneMockState(this.state); }
   tacticSuggestions(): TacticDescriptor[] { return []; }
   tacticHistory(): string[] { return []; }
   runTactic(tactic: string): ProofResult {
@@ -235,7 +235,7 @@ export class RealProofEngine implements ProofEngine {
   private history: string[] = [];
 
   loadTheorem(id: string): ProofStateView {
-    const theorem = REAL_THEOREMS[id] ?? REAL_THEOREMS.zero;
+    const theorem = Object.hasOwn(REAL_THEOREMS, id) ? REAL_THEOREMS[id] : REAL_THEOREMS.zero;
     this.theoremName = theorem.name;
     this.session = tacticSession(proofState([{ context: [], type: theorem.type }]));
     this.history = [];
