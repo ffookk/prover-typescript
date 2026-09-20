@@ -2,6 +2,12 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+The real proof interface accepts `intros` to introduce all leading function
+parameters in one command. For example, the Assumption exercise can be completed
+with `intros` followed by `assumption`. It stops at the first non-function goal
+and rejects goals with no parameters to introduce. The tactic API also provides
+`session.intros()`; `intro` continues to introduce just one parameter.
+
 ## Architecture
 
 ```text

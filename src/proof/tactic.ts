@@ -166,6 +166,12 @@ export class TacticSession {
     return this.withReplacement(hole.id, [child], root);
   }
 
+  intros(): TacticSession {
+    let session = this.intro();
+    while (whnf(session.currentGoal()!.type).kind === 'Pi') session = session.intro();
+    return session;
+  }
+
   exact(term: Term): TacticSession {
     const hole = this.firstHole();
     try { check(contextTypes(hole.goal.context), term, hole.goal.type); }

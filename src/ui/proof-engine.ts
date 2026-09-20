@@ -266,6 +266,10 @@ export class RealProofEngine implements ProofEngine {
           if (argument) throw new TacticError("intro does not take an argument");
           this.session = this.session.intro();
           break;
+        case "intros":
+          if (argument) throw new TacticError("intros does not take an argument");
+          this.session = this.session.intros();
+          break;
         case "rfl":
           if (argument) throw new TacticError("rfl does not take an argument");
           this.session = this.session.rfl();
