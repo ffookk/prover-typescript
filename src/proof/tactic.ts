@@ -324,7 +324,7 @@ export class TacticSession {
         let childType: Term;
         try { childType = toCoreTerm(argument.type, metaContext); }
         catch (error) { throw new TacticError(error instanceof Error ? error.message : String(error)); }
-        const childGoal = goal(hole.goal.context, childType);
+        const childGoal = goal(hole.goal.context, childType, hole.goal.caseName);
         const child = { id: childGoal.id!, goal: childGoal, depth: hole.depth };
         childHoles.push(child);
         argumentNodes.push({ kind: 'hole', id: child.id });
