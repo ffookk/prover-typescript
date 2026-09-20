@@ -42,6 +42,8 @@ export class MetaContext {
 
   assign(id: number, value: MetaTerm): MetaContext {
     const variable = this.lookup(id);
+    // Assignments are single-use; branch from an unassigned context to explore alternatives.
+    if (this.assignments.has(id)) throw new MetaVariableError(`Metavariable ?m${id} is already assigned`);
     const resolved = resolveMetaTerm(this, value, new Set([id]));
     if (resolved.kind === 'meta' && resolved.id === id) throw new MetaVariableError(`Cannot assign ?m${id} to itself`);
     validateAssignmentScope(variable, value, this);
