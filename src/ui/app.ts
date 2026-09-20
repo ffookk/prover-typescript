@@ -87,7 +87,7 @@ function renderProofCourse(): void {
           <div class="theorem-header"><div><div class="section-label">Chapter ${chapter.number} · Exercise ${exercise.number}</div><h1>${exercise.title}</h1><p class="theorem-statement"><code>${exercise.statement}</code></p></div></div>
           <section class="card"><div class="card-title">Prerequisites</div><div>${exercise.prerequisiteIds.length ? exercise.prerequisiteIds.join(" → ") : "None"}</div></section>
           <section class="card"><div class="card-title">Suggested path</div><code>${exercise.tacticHint}</code></section>
-          ${state && !state.completed && state.goals[0] ? `<div class="proof-layout"><div class="proof-main">${renderProofState(engine.displayProofState()!)}${renderTacticHistory(engine.tacticHistory())}<section class="card tactic-card"><div class="card-title">Tactic</div><input id="tactic-input" class="tactic-input" type="text" value="${escapeHtml(tacticInputValue)}" aria-invalid="${statusKind === "error" ? "true" : "false"}" aria-describedby="tactic-feedback" placeholder="intro, rfl, assumption, exact, apply, rewrite h, induction n" autocomplete="off"/>${statusKind === "error" ? `<div id="tactic-feedback" class="tactic-feedback" role="alert">${escapeHtml(statusMessage.replace(/^Proof rejected:\s*/, ""))}</div>` : ""}<button id="apply-button" class="apply-button" type="button">Apply</button></section></div>${renderTactics()}</div>` : state?.completed ? `<div class="completed-state"><strong>Proof accepted</strong><span>Accepted by the real Kernel.</span></div>` : `<section class="card unavailable-state"><strong>Unavailable</strong><span>${exercise.availabilityNote}</span></section>`}
+          ${state && !state.completed && state.goals[0] ? `<div class="proof-layout"><div class="proof-main">${renderProofState(engine.displayProofState()!)}${renderTacticHistory(engine.tacticHistory())}<section class="card tactic-card"><div class="card-title">Tactic · / to focus</div><input id="tactic-input" aria-keyshortcuts="/" class="tactic-input" type="text" value="${escapeHtml(tacticInputValue)}" aria-invalid="${statusKind === "error" ? "true" : "false"}" aria-describedby="tactic-feedback" placeholder="intro, rfl, assumption, exact, apply, rewrite h, induction n" autocomplete="off"/>${statusKind === "error" ? `<div id="tactic-feedback" class="tactic-feedback" role="alert">${escapeHtml(statusMessage.replace(/^Proof rejected:\s*/, ""))}</div>` : ""}<button id="apply-button" class="apply-button" type="button">Apply</button></section></div>${renderTactics()}</div>` : state?.completed ? `<div class="completed-state"><strong>Proof accepted</strong><span>Accepted by the real Kernel.</span></div>` : `<section class="card unavailable-state"><strong>Unavailable</strong><span>${exercise.availabilityNote}</span></section>`}
           <section class="proof-state" aria-live="polite"><div><div class="card-title">Proof State</div><pre class="state-message ${statusKind}">${statusMessage}</pre></div><span class="goal-count">${state?.goals.length ?? 0} ${state?.goals.length === 1 ? "goal" : "goals"}</span></section>
           <section class="goals-list" aria-label="Proof goals">${renderGoals()}</section>
           ${state?.completed && next ? `<button id="next-button" class="next-button" type="button">Next exercise →</button>` : courseComplete ? `<div class="completed-state"><strong>Course complete</strong><span>All ten exercises have Kernel-backed accepted proofs.</span></div>` : ""}
@@ -131,6 +131,16 @@ function renderRoute(): void {
   if (location.hash === "#kv-cache") renderKVRoute();
   else renderProofCourse();
 }
+
+window.addEventListener("keydown", (event) => {
+  if (event.key !== "/" || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+  const input = root.querySelector<HTMLInputElement>("#tactic-input");
+  if (!input) return;
+  event.preventDefault();
+  input.focus();
+});
 
 window.addEventListener("hashchange", renderRoute);
 renderRoute();
