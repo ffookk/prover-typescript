@@ -34,6 +34,10 @@ export function goal(context: Context, type: Term, caseName?: string, id: GoalId
 }
 
 function normalizeGoals(goals: readonly Goal[]): Goal[] {
+  // Reserve caller-supplied identities before allocating missing or duplicate IDs.
+  for (const { id } of goals) {
+    if (id !== undefined && id >= nextGoalId) nextGoalId = id + 1;
+  }
   const used = new Set<GoalId>();
   return goals.map(({ id, context, type, caseName }) => {
     let stableId = id ?? freshGoalId();

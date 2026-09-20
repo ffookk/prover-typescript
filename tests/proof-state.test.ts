@@ -90,3 +90,35 @@ test('solving the focused goal leaves other goals and selects the next goal', ()
   assert.equal(updated.focusedGoalId, state.goals[2].id);
 });
 
+test('generated goal IDs do not steal a later explicit goal identity or focus', () => {
+  const explicitId = goal([], Nat).id! + 1;
+  const input = [
+    { context: [], type: Nat },
+    { id: explicitId, context: [], type: Type },
+  ];
+
+  const state = proofState(input, explicitId);
+
+  assert.equal(state.goals[1].id, explicitId);
+  assert.notEqual(state.goals[0].id, explicitId);
+  assert.equal(state.goals.find(item => item.id === state.focusedGoalId)?.type, Type);
+  assert.equal(focusNext(state).focusedGoalId, state.goals[0].id);
+  assert.equal('id' in input[0], false);
+  assert.equal(input[1].id, explicitId);
+});
+
+test('replacing a duplicate goal ID preserves later explicit goal IDs', () => {
+  const first = goal([], Nat);
+  const laterId = first.id! + 1;
+  const state = proofState([
+    first,
+    { ...first, caseName: 'duplicate' },
+    { id: laterId, context: [], type: Type },
+  ], laterId);
+
+  assert.equal(state.goals[0].id, first.id);
+  assert.equal(state.goals[2].id, laterId);
+  assert.equal(new Set(state.goals.map(item => item.id)).size, 3);
+  assert.equal(state.goals.find(item => item.id === state.focusedGoalId)?.type, Type);
+  assert.equal(state.goals[1].caseName, 'duplicate');
+});
