@@ -515,3 +515,17 @@ git diff --check  -> success
 ```
 
 The Kernel remains independent of Chapter, Exercise, UI, and tactic metadata.
+
+## Decimal numeral expansion
+
+Decimal literals are represented as unary `Succ` nodes. To keep a short input
+from exhausting memory, each call to `parse` allows at most 10,000 successors
+introduced by decimal literals across the whole term. For example,
+`Eq Nat 6000 4000` fits the parser budget, while `Eq Nat 6000 6000` is rejected
+with a `ParseError` before the second literal is expanded. Leading zeroes do not
+change a literal's cost, and each new parse starts with a fresh budget.
+
+The REPL reports this error and accepts subsequent commands; rejected definitions
+are not added to the environment. This limit bounds decimal expansion only.
+It does not change Core numeral construction or guarantee that deeply nested
+terms can be elaborated, type checked, or evaluated within runtime stack limits.

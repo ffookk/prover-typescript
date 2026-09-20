@@ -16,6 +16,10 @@ type TokenKind = 'identifier' | 'number' | 'lparen' | 'rparen' | 'colon' | 'arro
 interface Token { readonly kind: TokenKind; readonly text: string; readonly position: number; }
 export class ParseError extends Error { constructor(message: string) { super(message); this.name = 'ParseError'; } }
 
+// Decimal syntax expands to unary successors. Bound its allocation per term,
+// including literals nested in separate constructor arguments or binders.
+const MAX_NUMERAL_EXPANSION = 10_000;
+
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
   let position = 0;
@@ -49,6 +53,7 @@ function tokenize(input: string): Token[] {
 class Parser {
   private readonly tokens: readonly Token[];
   private position = 0;
+  private remainingNumeralExpansion = MAX_NUMERAL_EXPANSION;
   constructor(input: string) { this.tokens = tokenize(input); }
   parse(): SurfaceTerm {
     const term = this.parseTerm();
@@ -90,6 +95,10 @@ class Parser {
       this.position += 1;
       const value = Number(token.text);
       if (!Number.isSafeInteger(value)) throw this.error(`Natural literal is too large: ${token.text}`);
+      if (value > this.remainingNumeralExpansion) {
+        throw new ParseError(`Decimal numeral expansion limit of ${MAX_NUMERAL_EXPANSION} successors exceeded at position ${token.position}`);
+      }
+      this.remainingNumeralExpansion -= value;
       let result: SurfaceTerm = surfaceZero;
       for (let index = 0; index < value; index += 1) result = surfaceSucc(result);
       return result;
