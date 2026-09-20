@@ -30,6 +30,27 @@ Kernel
 
 The Kernel is the final trusted boundary. Parser, elaborator, environment, REPL, Proof State, tactics, metavariables, unification, and automation must not become Kernel dependencies.
 
+## Recursor syntax
+
+Source terms can use the existing Core recursors directly:
+
+```text
+Nat.rec motive zeroCase succCase scrutinee
+Eq.rec motive reflCase left right equality
+```
+
+Every argument is explicit. Arguments use the same atom precedence as `Eq` and `Refl`; put function applications and lambda terms in parentheses. `Nat.rec` requires a motive of type `(n : Nat) -> Type`, a base case at zero, and a successor function receiving the predecessor and its induction hypothesis. `Eq.rec` transports a proof from `motive left` to `motive right` using the supplied equality.
+
+For example, enter each command on one REPL line:
+
+```text
+def count := (n : Nat) => Nat.rec ((k : Nat) => Nat) 0 ((k : Nat) => (ih : Nat) => Succ ih) n
+Succ (count 3)
+theorem self : Eq Nat 0 0 := Eq.rec ((n : Nat) => Eq Nat n n) (Refl Nat 0) 0 0 (Refl Nat 0)
+```
+
+The REPL reports `defined count`, `Nat`, and `theorem self`. Recursors produce the existing Surface AST nodes and pass through the elaborator and Kernel; they add no evaluation or proof rules. Both spellings are reserved syntax and cannot be used as binding or declaration names. Other dotted names are unsupported.
+
 ## Milestone 16 — Proof State
 
 Milestone 16 is complete. It introduces the smallest independent Proof State model needed for later tactics, without implementing tactics or metavariables.

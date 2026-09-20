@@ -2,8 +2,10 @@ import {
   SurfaceTerm,
   surfaceApp,
   surfaceEq,
+  surfaceEqRec,
   surfaceLambda,
   surfaceNat,
+  surfaceNatRec,
   surfacePi,
   surfaceRefl,
   surfaceSucc,
@@ -12,7 +14,7 @@ import {
   surfaceSort,
 } from '../syntax/surface';
 
-type TokenKind = 'identifier' | 'number' | 'lparen' | 'rparen' | 'colon' | 'arrow' | 'fatArrow' | 'eof';
+type TokenKind = 'identifier' | 'recursor' | 'number' | 'lparen' | 'rparen' | 'colon' | 'arrow' | 'fatArrow' | 'eof';
 interface Token { readonly kind: TokenKind; readonly text: string; readonly position: number; }
 export class ParseError extends Error { constructor(message: string) { super(message); this.name = 'ParseError'; } }
 
@@ -37,6 +39,14 @@ function tokenize(input: string): Token[] {
       const start = position;
       position += 1;
       while (position < input.length && /[A-Za-z0-9_']/.test(input[position])) position += 1;
+      const name = input.slice(start, position);
+      if ((name === 'Nat' || name === 'Eq') && input.startsWith('.rec', position)
+          && !/[A-Za-z0-9_'.]/.test(input[position + 4] ?? '')) {
+        position += 4;
+        // A separate token keeps recursor spellings out of binding names.
+        tokens.push({ kind: 'recursor', text: input.slice(start, position), position: start });
+        continue;
+      }
       tokens.push({ kind: 'identifier', text: input.slice(start, position), position: start });
       continue;
     }
@@ -75,11 +85,13 @@ class Parser {
   }
   private parseAtom(): SurfaceTerm {
     const token = this.current;
-    if (token.kind === 'identifier') {
+    if (token.kind === 'identifier' || token.kind === 'recursor') {
       this.position += 1;
       switch (token.text) {
         case 'Type': return surfaceSort;
         case 'Nat': return surfaceNat;
+        case 'Nat.rec': return surfaceNatRec(this.parseAtom(), this.parseAtom(), this.parseAtom(), this.parseAtom());
+        case 'Eq.rec': return surfaceEqRec(this.parseAtom(), this.parseAtom(), this.parseAtom(), this.parseAtom(), this.parseAtom());
         case 'Succ': return surfaceSucc(this.parseAtom());
         case 'Eq': return surfaceEq(this.parseAtom(), this.parseAtom(), this.parseAtom());
         case 'Refl': return surfaceRefl(this.parseAtom(), this.parseAtom());
@@ -102,7 +114,7 @@ class Parser {
     }
     throw this.error(`Expected a term, found '${token.text || 'EOF'}'`);
   }
-  private startsAtom(token: Token): boolean { return token.kind === 'identifier' || token.kind === 'number' || token.kind === 'lparen'; }
+  private startsAtom(token: Token): boolean { return token.kind === 'identifier' || token.kind === 'recursor' || token.kind === 'number' || token.kind === 'lparen'; }
   private looksLikeBinder(): boolean { return this.tokens[this.position + 1]?.kind === 'identifier' && this.tokens[this.position + 2]?.kind === 'colon'; }
   private expect(kind: TokenKind): Token {
     if (this.current.kind !== kind) throw this.error(`Expected ${kind}, found '${this.current.text || 'EOF'}'`);
