@@ -94,13 +94,17 @@ export function check(ctx: Context, term: Term, expected: Term): void {
 }
 
 export function typeCheck(term: Term, expected?: Term): Term {
-  if (expected) { check([], term, expected); return expected; }
+  if (expected) {
+    check([], expected, Type);
+    check([], term, expected);
+    return expected;
+  }
   return infer([], term);
 }
 
 export function inferLambdaApplication(lambdaTerm: Term, arg: Term): Term {
   if (lambdaTerm.kind !== 'Lambda') fail('Expected a lambda');
-  check([], arg, lambdaTerm.domain);
+  infer([], app(lambdaTerm, arg));
   return substitute(lambdaTerm.body, arg);
 }
 
