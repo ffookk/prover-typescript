@@ -1,4 +1,5 @@
 import { Term } from '../syntax/ast';
+import { shift } from '../kernel/reduction';
 import { MetaContext, MetaRef, coreTerm, metaTerm } from './metavariable/meta';
 
 export type UnificationTerm = Term | MetaRef;
@@ -12,14 +13,24 @@ export class UnificationError extends Error {
 }
 
 export function unify(left: UnificationTerm, right: UnificationTerm, context: MetaContext): MetaContext {
-  const a = prune(left, context);
-  const b = prune(right, context);
+  return unifyAtDepth(left, right, context, 0);
+}
+
+function unifyAtDepth(left: UnificationTerm, right: UnificationTerm, context: MetaContext, binderDepth: number): MetaContext {
+  const a = prune(left, context, binderDepth);
+  const b = prune(right, context, binderDepth);
+  const assign = (variable: MetaRef, value: UnificationTerm): MetaContext => {
+    // Inferring root-scope assignments from binder-local terms requires a
+    // binder-aware solver. Keep this unsupported case explicit and immutable.
+    if (binderDepth > 0) throw new UnificationError(`Cannot infer metavariable ?m${variable.id} under a binder`);
+    return assignFromTerm(variable, value, context);
+  };
   if (a.kind === 'meta') {
     if (b.kind === 'meta' && a.id === b.id) return context;
-    return assignFromTerm(a, b, context);
+    return assign(a, b);
   }
-  if (b.kind === 'meta') return assignFromTerm(b, a, context);
-  return unifyCore(a, b, context);
+  if (b.kind === 'meta') return assign(b, a);
+  return unifyCore(a, b, context, binderDepth);
 }
 
 export function toCoreTerm(term: UnificationTerm, context: MetaContext): Term {
@@ -28,16 +39,18 @@ export function toCoreTerm(term: UnificationTerm, context: MetaContext): Term {
   return materializeCore(resolved, context);
 }
 
-function materializeCore(term: Term, context: MetaContext): Term {
-  const nested = (value: Term): Term => {
+function materializeCore(term: Term, context: MetaContext, binderDepth = 0): Term {
+  const nested = (value: Term, depth = binderDepth): Term => {
     const candidate = value as UnificationTerm;
-    if (candidate.kind === 'meta') return toCoreTerm(candidate, context);
-    return materializeCore(candidate, context);
+    // Assignments live in the metavariable's original local scope. Lift their
+    // free variables across binders surrounding this occurrence.
+    if (candidate.kind === 'meta') return shift(toCoreTerm(candidate, context), depth);
+    return materializeCore(candidate, context, depth);
   };
   switch (term.kind) {
     case 'Type': case 'Nat': case 'Zero': case 'Var': return term;
-    case 'Pi': return { ...term, domain: nested(term.domain), body: nested(term.body) };
-    case 'Lambda': return { ...term, domain: nested(term.domain), body: nested(term.body) };
+    case 'Pi': return { ...term, domain: nested(term.domain), body: nested(term.body, binderDepth + 1) };
+    case 'Lambda': return { ...term, domain: nested(term.domain), body: nested(term.body, binderDepth + 1) };
     case 'App': return { ...term, fn: nested(term.fn), arg: nested(term.arg) };
     case 'Succ': return { ...term, value: nested(term.value) };
     case 'NatRec': return { ...term, motive: nested(term.motive), zeroCase: nested(term.zeroCase), succCase: nested(term.succCase), scrutinee: nested(term.scrutinee) };
@@ -89,10 +102,11 @@ function assignFromTerm(variable: MetaRef, value: UnificationTerm, context: Meta
   return context.assign(variable.id, coreTerm(resolved));
 }
 
-function prune(term: UnificationTerm, context: MetaContext): UnificationTerm {
+function prune(term: UnificationTerm, context: MetaContext, binderDepth = 0): UnificationTerm {
   if (term.kind !== 'meta') return term;
   const resolved = context.resolve(term.id);
-  return resolved.kind === 'meta' ? resolved : resolved.term;
+  if (resolved.kind === 'meta') return resolved;
+  return binderDepth === 0 ? resolved.term : shiftUnification(resolved.term, binderDepth);
 }
 
 function occurs(id: number, term: UnificationTerm, context: MetaContext): boolean {
@@ -110,8 +124,9 @@ function occurs(id: number, term: UnificationTerm, context: MetaContext): boolea
   }
 }
 
-function unifyCore(left: Term, right: Term, context: MetaContext): MetaContext {
+function unifyCore(left: Term, right: Term, context: MetaContext, binderDepth: number): MetaContext {
   if (left.kind !== right.kind) throw new UnificationError(`Cannot unify ${left.kind} with ${right.kind}`);
+  const nested = (a: UnificationTerm, b: UnificationTerm, next: MetaContext): MetaContext => unifyAtDepth(a, b, next, binderDepth);
   switch (left.kind) {
     case 'Type': case 'Nat': case 'Zero': return context;
     case 'Var':
@@ -119,38 +134,38 @@ function unifyCore(left: Term, right: Term, context: MetaContext): MetaContext {
       return context;
     case 'Pi': case 'Lambda': {
       const r = right as typeof left;
-      let next = unify(left.domain, r.domain, context);
-      return unify(left.body, r.body, next);
+      const next = nested(left.domain, r.domain, context);
+      return unifyAtDepth(left.body, r.body, next, binderDepth + 1);
     }
     case 'App': {
       const r = right as typeof left;
-      return unify(left.arg, r.arg, unify(left.fn, r.fn, context));
+      return nested(left.arg, r.arg, nested(left.fn, r.fn, context));
     }
-    case 'Succ': return unify(left.value, (right as typeof left).value, context);
+    case 'Succ': return nested(left.value, (right as typeof left).value, context);
     case 'NatRec': {
       const r = right as typeof left;
-      let next = unify(left.motive, r.motive, context);
-      next = unify(left.zeroCase, r.zeroCase, next);
-      next = unify(left.succCase, r.succCase, next);
-      return unify(left.scrutinee, r.scrutinee, next);
+      let next = nested(left.motive, r.motive, context);
+      next = nested(left.zeroCase, r.zeroCase, next);
+      next = nested(left.succCase, r.succCase, next);
+      return nested(left.scrutinee, r.scrutinee, next);
     }
     case 'Eq': {
       const r = right as typeof left;
-      let next = unify(left.type, r.type, context);
-      next = unify(left.left, r.left, next);
-      return unify(left.right, r.right, next);
+      let next = nested(left.type, r.type, context);
+      next = nested(left.left, r.left, next);
+      return nested(left.right, r.right, next);
     }
     case 'Refl': {
       const r = right as typeof left;
-      return unify(left.value, r.value, unify(left.type, r.type, context));
+      return nested(left.value, r.value, nested(left.type, r.type, context));
     }
     case 'EqRec': {
       const r = right as typeof left;
-      let next = unify(left.motive, r.motive, context);
-      next = unify(left.reflCase, r.reflCase, next);
-      next = unify(left.left, r.left, next);
-      next = unify(left.right, r.right, next);
-      return unify(left.equality, r.equality, next);
+      let next = nested(left.motive, r.motive, context);
+      next = nested(left.reflCase, r.reflCase, next);
+      next = nested(left.left, r.left, next);
+      next = nested(left.right, r.right, next);
+      return nested(left.equality, r.equality, next);
     }
   }
 }
