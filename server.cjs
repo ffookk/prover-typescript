@@ -5,7 +5,22 @@ const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 4173);
 const root = path.join(__dirname, "dist-web");
 const contentTypes = { ".html":"text/html; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".ico":"image/x-icon" };
-const sendFile = (filePath, res) => { const ext = path.extname(filePath).toLowerCase(); res.writeHead(200, { "Content-Type": contentTypes[ext] || "application/octet-stream" }); fs.createReadStream(filePath).pipe(res); };
+const sendFile = (filePath, res) => {
+  const ext = path.extname(filePath).toLowerCase();
+  const stream = fs.createReadStream(filePath);
+  stream.once("error", () => {
+    if (res.headersSent) { res.destroy(); return; }
+    res.writeHead(500, { "Content-Type":"text/plain; charset=utf-8" });
+    res.end("Unable to read file");
+  });
+  res.once("close", () => stream.destroy());
+  // stat succeeding does not guarantee the file can still be opened.
+  stream.once("open", () => {
+    if (res.destroyed) { stream.destroy(); return; }
+    res.writeHead(200, { "Content-Type": contentTypes[ext] || "application/octet-stream" });
+    stream.pipe(res);
+  });
+};
 http.createServer((req, res) => {
   const requestPath = decodeURIComponent((req.url || "/").split("?")[0]);
   const relative = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
