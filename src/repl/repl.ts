@@ -59,7 +59,8 @@ export async function startRepl(
       const kind = error instanceof Error ? error.name : 'Error';
       output.write(`Error [${kind}]: ${message}\n`);
     }
-    if (closed) break;
-    rl.prompt();
+    // EOF can close readline while complete lines are still queued in its
+    // async iterator. Drain them, but do not prompt once input has closed.
+    if (!closed) rl.prompt();
   }
 }
