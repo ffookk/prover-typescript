@@ -2,6 +2,20 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+## Run locally
+
+Use Node.js 22.12 or newer and npm. From the repository directory:
+
+```sh
+npm ci
+npm run dev:web
+```
+
+Open the local URL printed by Vite. Run `npm test` to compile and run the test suite.
+For the terminal REPL, run `npm run build`, then `node dist/src/index.js`; enter
+`exit` to leave. To serve the production web bundle, run `npm run build:web`,
+then `npm start` and open `http://127.0.0.1:4173`.
+
 ## Architecture
 
 ```text
