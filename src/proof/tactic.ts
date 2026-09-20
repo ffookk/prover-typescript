@@ -1,6 +1,6 @@
 import { check, infer, show } from '../kernel/typecheck';
 import { definitionalEqual, normalize, shift, whnf } from '../kernel/reduction';
-import { Term, Nat, Zero, app, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
+import { Term, Nat, Zero, app, eq, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
 import { Context, Goal, GoalId, ProofState, goal, proofState } from './state';
 import { MetaContext } from './metavariable/meta';
 import { UnificationError, UnificationTerm, substituteUnification, toCoreTerm, unify } from './unification';
@@ -184,12 +184,16 @@ export class TacticSession {
     return this.exact(refl(type.type, type.left));
   }
 
-  rewrite(equalityProof: Term): TacticSession {
+  rewrite(equalityProof: Term, reverse = false): TacticSession {
     const hole = this.firstHole();
     let equalityType: Term;
     try { equalityType = whnf(infer(contextTypes(hole.goal.context), equalityProof)); }
     catch (error) { throw new TacticError(error instanceof Error ? error.message : String(error)); }
     if (equalityType.kind !== 'Eq') throw new TacticError(`rewrite expected an equality proof, found ${show(equalityType)}`);
+    if (reverse) {
+      const motive = lambda(equalityType.type, eq(shift(equalityType.type, 1), variable(0), shift(equalityType.left, 1)));
+      return this.rewrite(eqRec(motive, refl(equalityType.type, equalityType.left), equalityType.left, equalityType.right, equalityProof));
+    }
 
     // Rewrite should see through definitional computation.  Addition recurses
     // on its first argument, so a target such as `Succ n + Succ 0` is stored

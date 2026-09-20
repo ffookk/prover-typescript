@@ -292,10 +292,12 @@ export class RealProofEngine implements ProofEngine {
           break;
         }
         case "rewrite": {
-          if (!argument) throw new TacticError("rewrite expects an equality proof");
+          const reverse = parts[0] === "<-";
+          const proofSource = reverse ? parts.slice(1).join(" ") : argument;
+          if (!proofSource) throw new TacticError("rewrite expects an equality proof");
           const goal = this.session.currentGoal();
           if (!goal) throw new TacticError("No goals remain");
-          this.session = this.session.rewrite(parseArgument(argument, goal.context));
+          this.session = this.session.rewrite(parseArgument(proofSource, goal.context), reverse);
           break;
         }
         case "induction":

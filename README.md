@@ -2,6 +2,12 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+Use `rewrite <- h` in the real proof interface to rewrite from right to left.
+With `h : a = b`, it replaces occurrences of `b` in the focused target with `a`;
+`rewrite h` retains the forward direction. The tactic API supports the same
+operation with `session.rewrite(equalityProof, true)`. Both directions construct
+proofs using the existing `EqRec` primitive and the same rewrite restrictions.
+
 ## Architecture
 
 ```text
