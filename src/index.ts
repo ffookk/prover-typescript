@@ -1,3 +1,3 @@
 import { startRepl } from './repl/repl';
 
-void startRepl();
+if (require.main === module) void startRepl();
