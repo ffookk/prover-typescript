@@ -49,9 +49,13 @@ export function whnf(term: Term): Term {
         continue;
       }
     }
-    if (term.kind === 'EqRec' && term.equality.kind === 'Refl') {
-      term = term.reflCase;
-      continue;
+    if (term.kind === 'EqRec') {
+      const equality = whnf(term.equality);
+      if (equality.kind === 'Refl') {
+        term = term.reflCase;
+        continue;
+      }
+      return equality === term.equality ? term : { ...term, equality };
     }
     return term;
   }
@@ -80,7 +84,11 @@ export function normalize(term: Term): Term {
     }
     case 'Eq': return { ...reduced, type: normalize(reduced.type), left: normalize(reduced.left), right: normalize(reduced.right) };
     case 'Refl': return { ...reduced, type: normalize(reduced.type), value: normalize(reduced.value) };
-    case 'EqRec': return reduced.equality.kind === 'Refl' ? normalize(reduced.reflCase) : reduced;
+    case 'EqRec': {
+      const equality = normalize(reduced.equality);
+      if (equality.kind === 'Refl') return normalize(reduced.reflCase);
+      return { ...reduced, motive: normalize(reduced.motive), reflCase: normalize(reduced.reflCase), left: normalize(reduced.left), right: normalize(reduced.right), equality };
+    }
   }
 }
 
