@@ -2,6 +2,8 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+Enter `#help` in the REPL for command syntax and runnable examples; see [REPL help](docs/repl-help.md).
+
 ## Architecture
 
 ```text

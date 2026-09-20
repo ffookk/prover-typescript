@@ -7,6 +7,17 @@ import { ProofState } from '../proof/state';
 
 export const EXIT_COMMAND = 'exit';
 
+const HELP_TEXT = [
+  'REPL commands:',
+  '  term                  Infer a term\'s type (example: Nat)',
+  '  def name := term      Define a reusable term (example: def zero := 0)',
+  '  theorem name : proposition := proof',
+  '                        Check and store a proof',
+  '                        Example: theorem self : Eq Nat 0 0 := Refl Nat 0',
+  '  #help                 Show this help',
+  '  exit                  Leave the REPL',
+].join('\n');
+
 export function formatProofState(state: ProofState): string {
   if (state.goals.length === 0) return 'No goals.\nProof complete.';
   return ['Goals:', ...state.goals.map((goal, index) => {
@@ -21,6 +32,7 @@ export function processLine(input: string, environment: Environment = new Global
   if (line === '') return '';
   if (line === EXIT_COMMAND) return null;
   const command = parseCommand(line);
+  if (command.kind === 'help') return HELP_TEXT;
   if (command.kind === 'term') {
     const core = elaborate(command.term, [], environment);
     return show(infer([], core));

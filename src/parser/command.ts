@@ -2,6 +2,7 @@ import { SurfaceTerm } from '../syntax/surface';
 import { ParseError, parse } from './parser';
 
 export type Command =
+  | { readonly kind: 'help' }
   | { readonly kind: 'term'; readonly term: SurfaceTerm }
   | { readonly kind: 'def'; readonly name: string; readonly term: SurfaceTerm }
   | { readonly kind: 'theorem'; readonly name: string; readonly proposition: SurfaceTerm; readonly proof: SurfaceTerm };
@@ -10,6 +11,7 @@ const identifierPattern = /^[A-Za-z_][A-Za-z0-9_']*$/;
 
 export function parseCommand(input: string): Command {
   const source = input.trim();
+  if (source === '#help') return { kind: 'help' };
   if (/^def(?:\s|$)/.test(source)) {
     const match = /^def\s+([^\s:=]+)\s*:=\s*([\s\S]*)$/.exec(source);
     if (!match) throw new ParseError("Expected 'def name := term'");
