@@ -81,6 +81,7 @@ function renderProofCourse(): void {
       <main class="workspace">
         <aside class="sidebar" aria-label="Chapter and exercise navigator">
           <div class="section-label">Course</div><h2>${NATURAL_NUMBERS_LESSON.title}</h2>
+          <p class="muted">${NATURAL_NUMBERS_LESSON.exercises.filter((item) => isCompleted(progress, item.id)).length}/${NATURAL_NUMBERS_LESSON.exercises.length} exercises completed</p>
           ${NATURAL_NUMBERS_LESSON.chapters.map((item) => `<section class="chapter"><div class="chapter-title">Chapter ${item.number} · ${item.title}</div>${item.exerciseIds.map((id) => { const itemEx = NATURAL_NUMBERS_LESSON.exercises.find((x) => x.id === id)!; return `<button class="theorem-item ${exercise.id === id ? "active" : ""} ${isCompleted(progress, id) ? "completed" : ""}" data-exercise="${id}" type="button"><span class="status">${isCompleted(progress, id) ? "✓" : itemEx.number}</span><span>${itemEx.title}</span></button>`; }).join("")}</section>`).join("")}
         </aside>
         <section class="proof-panel">
