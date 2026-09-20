@@ -81,6 +81,11 @@ export function isCompleted(progress: LessonProgress, exerciseId: string): boole
   return progress.completedExercises.includes(exerciseId);
 }
 
+export function previousExercise(lesson: Lesson, exerciseId: string): Exercise | null {
+  const index = lesson.exercises.findIndex((exercise) => exercise.id === exerciseId);
+  return index > 0 ? lesson.exercises[index - 1] : null;
+}
+
 export function nextExercise(lesson: Lesson, exerciseId: string): Exercise | null {
   const index = lesson.exercises.findIndex((exercise) => exercise.id === exerciseId);
   return index >= 0 ? lesson.exercises[index + 1] ?? null : null;
