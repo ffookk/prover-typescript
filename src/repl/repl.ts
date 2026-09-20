@@ -1,7 +1,7 @@
 import readline from 'node:readline';
 import { elaborate } from '../elaborator/elaborate';
 import { check, infer, show } from '../kernel/typecheck';
-import { GlobalEnvironment, Environment } from '../environment/environment';
+import { GlobalEnvironment, Environment, EnvironmentError } from '../environment/environment';
 import { parseCommand } from '../parser/command';
 import { ProofState } from '../proof/state';
 
@@ -21,6 +21,11 @@ export function processLine(input: string, environment: Environment = new Global
   if (line === '') return '';
   if (line === EXIT_COMMAND) return null;
   const command = parseCommand(line);
+  if (command.kind === 'print') {
+    const term = environment.lookup(command.name);
+    if (term === undefined) throw new EnvironmentError(`Unknown definition: ${command.name}`);
+    return `${command.name} : ${show(infer([], term))} := ${show(term)}`;
+  }
   if (command.kind === 'term') {
     const core = elaborate(command.term, [], environment);
     return show(infer([], core));

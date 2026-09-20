@@ -2,6 +2,8 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+Use `#print name` in the REPL to [inspect a stored definition or theorem proof](docs/repl-print.md).
+
 ## Architecture
 
 ```text
