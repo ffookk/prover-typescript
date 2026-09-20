@@ -35,19 +35,25 @@ export function substitute(body: Term, replacement: Term, depth = 0): Term {
 
 export function whnf(term: Term): Term {
   while (true) {
-    if (term.kind === 'App' && term.fn.kind === 'Lambda') {
-      term = substitute(term.fn.body, term.arg);
-      continue;
+    if (term.kind === 'App') {
+      const fn = whnf(term.fn);
+      if (fn.kind === 'Lambda') {
+        term = substitute(fn.body, term.arg);
+        continue;
+      }
+      return fn === term.fn ? term : app(fn, term.arg);
     }
     if (term.kind === 'NatRec') {
-      if (term.scrutinee.kind === 'Zero') {
+      const scrutinee = whnf(term.scrutinee);
+      if (scrutinee.kind === 'Zero') {
         term = term.zeroCase;
         continue;
       }
-      if (term.scrutinee.kind === 'Succ') {
-        term = app(app(term.succCase, term.scrutinee.value), natRec(term.motive, term.zeroCase, term.succCase, term.scrutinee.value));
+      if (scrutinee.kind === 'Succ') {
+        term = app(app(term.succCase, scrutinee.value), natRec(term.motive, term.zeroCase, term.succCase, scrutinee.value));
         continue;
       }
+      return scrutinee === term.scrutinee ? term : { ...term, scrutinee };
     }
     if (term.kind === 'EqRec' && term.equality.kind === 'Refl') {
       term = term.reflCase;

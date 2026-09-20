@@ -34,7 +34,7 @@ test('Nat.rec successor iota reduction is definitional equality', () => {
   const term = natRec(motive, zeroCase, succCase, succ(n));
   const expected = app(app(succCase, n), natRec(motive, zeroCase, succCase, n));
   assert.ok(definitionalEqual(term, expected));
-  assert.deepEqual(whnf(term), expected);
+  assert.deepEqual(whnf(term), succ(natRec(motive, zeroCase, succCase, n)));
 });
 
 test('closed add computation is definitionally equal to a numeral', () => {
