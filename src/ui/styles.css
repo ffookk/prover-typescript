@@ -64,6 +64,9 @@ button { border: 0; }
 
 .proof-panel { width: 100%; padding: 42px 48px 64px; }
 .theorem-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 26px; }
+.undo-button { flex-shrink: 0; margin-left: 16px; padding: 10px 14px; border: 1px solid #cfd6df; border-radius: 7px; background: #fff; color: #273449; cursor: pointer; }
+.undo-button:hover:not(:disabled) { background: #f7f9fb; }
+.undo-button:disabled { color: #8792a2; cursor: default; opacity: .65; }
 h1 { margin: 7px 0 0; font-size: 28px; letter-spacing: -0.025em; }
 .mode-badge { padding: 6px 9px; border: 1px solid #d8dee6; border-radius: 999px; color: #697386; background: #fff; font-size: 12px; }
 .card { margin-bottom: 14px; padding: 20px 22px; border: 1px solid #dfe4ea; border-radius: 10px; background: #fff; }
@@ -185,7 +188,8 @@ pre.proof-expression { white-space: pre-wrap; word-break: keep-all; }
   .workspace { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid #dde2e8; padding: 22px 18px; }
   .proof-panel { padding: 30px 18px 48px; }
-  .theorem-header { gap: 16px; }
+  .theorem-header { gap: 16px; flex-wrap: wrap; }
+  .undo-button { margin-left: 0; }
   .proof-layout { grid-template-columns: 1fr; }
   .tactic-panel { position: static; }
   .kv-main { width: min(100% - 24px, 1080px); padding-top: 30px; }

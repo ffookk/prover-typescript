@@ -2,6 +2,25 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+## Undo the last course tactic
+
+The proof course has an **Undo last tactic** button, including after a proof is
+accepted. Each undo restores the previous goals, local context, focus, and tactic
+history. For example, complete Identity with `intro; rfl`, undo `rfl`, and the
+`n : Nat` context and `n = n` goal return so you can continue the proof.
+
+Only successful tactics create undo steps. A rejected tactic or failed final
+Kernel check leaves the proof and undo history unchanged. Undoing the completion
+step removes that exercise's completion mark; other completed exercises are
+preserved, and proving it again restores its mark. Selecting or reloading an
+exercise starts a new proof and clears its undo history. There is no redo or
+persistent undo storage.
+
+Both `RealProofEngine` and `MockProofEngine` expose `canUndo(): boolean` and
+`undo(): ProofResult`. Undo returns a detached view of the restored state, or an
+error result when no step is available. Real proofs use immutable tactic-session
+snapshots; the Kernel and Core proof terms have no undo-specific changes.
+
 ## Architecture
 
 ```text

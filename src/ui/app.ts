@@ -1,7 +1,7 @@
 import "./styles.css";
 import { renderBracketedExpression } from "./bracket-renderer";
 import { RealProofEngine, REAL_THEOREM_LIST, TACTICS, type DisplayProofState, type ProofStateView } from "./proof-engine";
-import { NATURAL_NUMBERS_LESSON, initialLessonProgress, initialTheoremState, isCompleted, nextExercise, recordProofResult, type Exercise } from "./tutorial";
+import { NATURAL_NUMBERS_LESSON, initialLessonProgress, initialTheoremState, isCompleted, nextExercise, recordProofResult, removeExerciseCompletion, type Exercise } from "./tutorial";
 import { renderKVCacheLab } from "./kv-cache-lab";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -84,7 +84,7 @@ function renderProofCourse(): void {
           ${NATURAL_NUMBERS_LESSON.chapters.map((item) => `<section class="chapter"><div class="chapter-title">Chapter ${item.number} · ${item.title}</div>${item.exerciseIds.map((id) => { const itemEx = NATURAL_NUMBERS_LESSON.exercises.find((x) => x.id === id)!; return `<button class="theorem-item ${exercise.id === id ? "active" : ""} ${isCompleted(progress, id) ? "completed" : ""}" data-exercise="${id}" type="button"><span class="status">${isCompleted(progress, id) ? "✓" : itemEx.number}</span><span>${itemEx.title}</span></button>`; }).join("")}</section>`).join("")}
         </aside>
         <section class="proof-panel">
-          <div class="theorem-header"><div><div class="section-label">Chapter ${chapter.number} · Exercise ${exercise.number}</div><h1>${exercise.title}</h1><p class="theorem-statement"><code>${exercise.statement}</code></p></div></div>
+          <div class="theorem-header"><div><div class="section-label">Chapter ${chapter.number} · Exercise ${exercise.number}</div><h1>${exercise.title}</h1><p class="theorem-statement"><code>${exercise.statement}</code></p></div><button id="undo-button" class="undo-button" type="button" ${state && engine.canUndo() ? "" : "disabled"}>Undo last tactic</button></div>
           <section class="card"><div class="card-title">Prerequisites</div><div>${exercise.prerequisiteIds.length ? exercise.prerequisiteIds.join(" → ") : "None"}</div></section>
           <section class="card"><div class="card-title">Suggested path</div><code>${exercise.tacticHint}</code></section>
           ${state && !state.completed && state.goals[0] ? `<div class="proof-layout"><div class="proof-main">${renderProofState(engine.displayProofState()!)}${renderTacticHistory(engine.tacticHistory())}<section class="card tactic-card"><div class="card-title">Tactic</div><input id="tactic-input" class="tactic-input" type="text" value="${escapeHtml(tacticInputValue)}" aria-invalid="${statusKind === "error" ? "true" : "false"}" aria-describedby="tactic-feedback" placeholder="intro, rfl, assumption, exact, apply, rewrite h, induction n" autocomplete="off"/>${statusKind === "error" ? `<div id="tactic-feedback" class="tactic-feedback" role="alert">${escapeHtml(statusMessage.replace(/^Proof rejected:\s*/, ""))}</div>` : ""}<button id="apply-button" class="apply-button" type="button">Apply</button></section></div>${renderTactics()}</div>` : state?.completed ? `<div class="completed-state"><strong>Proof accepted</strong><span>Accepted by the real Kernel.</span></div>` : `<section class="card unavailable-state"><strong>Unavailable</strong><span>${exercise.availabilityNote}</span></section>`}
@@ -96,6 +96,19 @@ function renderProofCourse(): void {
 
     root.querySelectorAll<HTMLButtonElement>("[data-exercise]").forEach((button) => button.addEventListener("click", () => { const selected = NATURAL_NUMBERS_LESSON.exercises.find((item) => item.id === button.dataset.exercise); if (selected) selectExercise(selected); }));
     root.querySelector<HTMLButtonElement>("#next-button")?.addEventListener("click", () => { if (next) selectExercise(next); });
+    root.querySelector<HTMLButtonElement>("#undo-button")?.addEventListener("click", () => {
+      const wasCompleted = state?.completed === true;
+      const result = engine.undo();
+      state = result.state;
+      statusKind = result.kind === "success" ? "neutral" : "error";
+      statusMessage = result.message ?? "Last tactic undone";
+      if (result.kind === "success") {
+        if (wasCompleted) progress = removeExerciseCompletion(progress, exercise.id);
+        tacticInputValue = "";
+      }
+      render();
+      root.querySelector<HTMLInputElement>("#tactic-input")?.focus();
+    });
     const input = root.querySelector<HTMLInputElement>("#tactic-input");
     const apply = root.querySelector<HTMLButtonElement>("#apply-button");
     const applyTactic = () => {
