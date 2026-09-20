@@ -86,7 +86,9 @@ function assignFromTerm(variable: MetaRef, value: UnificationTerm, context: Meta
   const resolved = prune(value, context);
   if (resolved.kind === 'meta') return context.assign(variable.id, metaTerm(resolved.id));
   if (occurs(variable.id, resolved, context)) throw new UnificationError(`Occurs check failed: ?m${variable.id} occurs in its assignment`);
-  return context.assign(variable.id, coreTerm(resolved));
+  // MetaContext stores only Core terms or direct aliases. Materialize nested
+  // metavariables so its scope validator sees every free Core variable.
+  return context.assign(variable.id, coreTerm(toCoreTerm(resolved, context)));
 }
 
 function prune(term: UnificationTerm, context: MetaContext): UnificationTerm {

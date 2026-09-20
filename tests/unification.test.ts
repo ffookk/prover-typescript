@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MetaContext, coreTerm } from '../src/proof/metavariable/meta';
+import { infer } from '../src/kernel/typecheck';
 import { UnificationError, uApp, unify } from '../src/proof/unification';
-import { Nat, Zero, app, succ, variable } from '../src/syntax/ast';
+import { Nat, Zero, app, lambda, succ, variable } from '../src/syntax/ast';
 
 test('unification assigns a metavariable to a Core term', () => {
   const created = MetaContext.empty().create(0, Nat);
@@ -60,4 +61,58 @@ test('M20 conflicting implicit constraints reject without mutating prior assignm
   assert.throws(() => unify(created.term, succ(Zero), first), UnificationError);
   assert.deepEqual(first.resolve(created.variable.id), coreTerm(Nat));
   assert.equal(created.context.assignments.size, 0);
+});
+
+test('nested unresolved metavariables cannot bypass assignment scope checks', () => {
+  const outer = MetaContext.empty().create(0, Nat);
+  const inner = outer.context.create(1, Nat);
+  const identity = lambda(Nat, variable(0));
+
+  assert.throws(
+    () => unify(outer.term, uApp(identity, inner.term), inner.context),
+    /Unassigned metavariable/,
+  );
+  assert.equal(inner.context.assignment(outer.variable.id), undefined);
+  assert.equal(inner.context.assignment(inner.variable.id), undefined);
+});
+
+test('nested assigned metavariables are checked in the receiving metavariable scope', () => {
+  const outer = MetaContext.empty().create(0, Nat);
+  const inner = outer.context.create(1, Nat);
+  const assigned = inner.context.assign(inner.variable.id, coreTerm(variable(0)));
+  const identity = lambda(Nat, variable(0));
+
+  assert.throws(
+    () => unify(outer.term, uApp(identity, inner.term), assigned),
+    /Scope escape/,
+  );
+  assert.equal(assigned.assignment(outer.variable.id), undefined);
+  assert.deepEqual(assigned.instantiate(inner.term), variable(0));
+});
+
+test('nested closed assignments materialize into Core terms before storage', () => {
+  const outer = MetaContext.empty().create(0, Nat);
+  const inner = outer.context.create(1, Nat);
+  const assigned = inner.context.assign(inner.variable.id, coreTerm(Zero));
+  const identity = lambda(Nat, variable(0));
+
+  const result = unify(outer.term, uApp(identity, inner.term), assigned);
+  const proof = result.instantiate(outer.term);
+
+  assert.deepEqual(proof, app(identity, Zero));
+  assert.deepEqual(result.assignment(outer.variable.id), coreTerm(app(identity, Zero)));
+  assert.deepEqual(infer([], proof), Nat);
+  assert.equal(assigned.assignment(outer.variable.id), undefined);
+});
+
+test('direct unresolved metavariable aliases can still be solved later', () => {
+  const first = MetaContext.empty().create(0, Nat);
+  const second = first.context.create(0, Nat);
+
+  const aliased = unify(first.term, second.term, second.context);
+  const solved = unify(second.term, Zero, aliased);
+
+  assert.deepEqual(solved.instantiate(first.term), Zero);
+  assert.deepEqual(solved.instantiate(second.term), Zero);
+  assert.equal(second.context.assignments.size, 0);
 });
