@@ -121,7 +121,7 @@ function renderProofCourse(): void {
       tacticInputValue = input.value;
       input.focus();
     }));
-    input?.addEventListener("keydown", (event) => { if (event.key === "Enter") applyTactic(); });
+    input?.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.isComposing) applyTactic(); });
   }
 
   render();
