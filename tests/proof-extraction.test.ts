@@ -16,13 +16,21 @@ test('proof extraction checks the original type in its original local context', 
   assert.ok(definitionalEqual(infer([Nat], proof), type));
 });
 
-test('proof extraction rejects an induction term that proves a different original goal', () => {
+test('proof extraction never returns an induction term for a different original goal', () => {
   const type = pi(Nat, pi(Nat, eq(Nat, variable(1, 'm'), variable(1, 'm')), 'n'), 'm');
   const complete = tacticSession(proofState([{ context: [], type }]))
     .intro().intro().induction('n').rfl().rfl();
 
   assert.equal(complete.state.goals.length, 0);
-  // The bounded induction compiler still captures outer m as n here. Its
-  // term is well-typed as (m n : Nat) -> n = n, but that is not this goal.
-  assert.throws(() => complete.proof(), (error: unknown) => error instanceof KernelTypeError && /Type mismatch/.test(error.message));
+  // A compiler that captures m as n must reject extraction. If compilation
+  // succeeds, the returned term must prove the original m = m goal.
+  let proof: ReturnType<typeof complete.proof>;
+  try {
+    proof = complete.proof();
+  } catch (error) {
+    assert.ok(error instanceof KernelTypeError && /Type mismatch/.test(error.message));
+    return;
+  }
+  check([], proof, type);
+  assert.ok(definitionalEqual(infer([], proof), type));
 });
