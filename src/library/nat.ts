@@ -1,4 +1,4 @@
-import { Term, Nat, Zero, Type, variable, pi, lambda, app, succ, natRec, eq, refl } from '../syntax/ast';
+import { Term, Nat, Zero, Type, variable, pi, lambda, app, succ, natRec, eq, refl, natLiteral } from '../syntax/ast';
 
 export const add: Term = lambda(Nat,
   lambda(Nat,
@@ -24,9 +24,7 @@ export function natEquality(a: Term, b: Term): Term {
 }
 
 export function numeral(n: number): Term {
-  let result: Term = Zero;
-  for (let i = 0; i < n; i++) result = succ(result);
-  return result;
+  return natLiteral(n);
 }
 
 export const one = numeral(1);
