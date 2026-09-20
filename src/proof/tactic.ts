@@ -1,6 +1,6 @@
 import { check, infer, show } from '../kernel/typecheck';
 import { definitionalEqual, normalize, shift, whnf } from '../kernel/reduction';
-import { Term, Nat, Zero, app, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
+import { Term, Type, Nat, Zero, app, eqRec, lambda, natRec, pi, refl, succ, variable } from '../syntax/ast';
 import { Context, Goal, GoalId, ProofState, goal, proofState } from './state';
 import { MetaContext } from './metavariable/meta';
 import { UnificationError, UnificationTerm, substituteUnification, toCoreTerm, unify } from './unification';
@@ -200,6 +200,11 @@ export class TacticSession {
     if (!abstraction.found) throw new TacticError(`rewrite found no match for ${show(equalityType.left)} in ${show(hole.goal.type)}`);
 
     const motive = lambda(equalityType.type, abstraction.term);
+    // Abstracting a target can invalidate dependencies on existing locals:
+    // x : P a cannot inhabit P n inside fun n => Eq (P n) x x.
+    // Validate the motive before exposing a goal or recording an EqRec node.
+    try { check(contextTypes(hole.goal.context), motive, pi(equalityType.type, Type)); }
+    catch (error) { throw new TacticError(`rewrite produced an invalid dependent motive: ${error instanceof Error ? error.message : String(error)}`); }
     const rewrittenType = whnf(app(motive, equalityType.right));
     const childGoal = goal(hole.goal.context, rewrittenType, hole.goal.caseName);
     const child = { id: childGoal.id!, goal: childGoal, depth: hole.depth };
