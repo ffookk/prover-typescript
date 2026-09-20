@@ -218,7 +218,7 @@ function toView(theoremName: string, state: ProofState): ProofStateView {
   return {
     theoremName,
     completed: state.goals.length === 0,
-    goals: state.goals.map((goal) => {
+    goals: [...state.goals].sort((a, b) => Number(b.id === state.focusedGoalId) - Number(a.id === state.focusedGoalId)).map((goal) => {
       const display = projectGoal(goal);
       return { id: String(goal.id), target: display.goal, context: display.props };
     }),
@@ -265,6 +265,11 @@ export class RealProofEngine implements ProofEngine {
         case "intro":
           if (argument) throw new TacticError("intro does not take an argument");
           this.session = this.session.intro();
+          break;
+        case "next":
+        case "previous":
+          if (argument) throw new TacticError(`${name} does not take an argument`);
+          this.session = name.toLowerCase() === "next" ? this.session.next() : this.session.previous();
           break;
         case "rfl":
           if (argument) throw new TacticError("rfl does not take an argument");

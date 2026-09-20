@@ -2,6 +2,12 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+In the real proof interface, `next` and `previous` select the next or previous
+pending goal and wrap around at either end. For example, after `intro` and
+`induction n` in Identity, `next` selects the successor case before the base
+case. The focused goal appears first in the returned view; stable goal IDs and
+the internal goal order are preserved. Navigation is recorded in tactic history.
+
 ## Architecture
 
 ```text
