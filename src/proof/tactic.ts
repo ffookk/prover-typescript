@@ -92,12 +92,15 @@ function compile(root: ProofNode, depth = 0): Term {
     case 'app': return app(compile(root.fn, depth), compile(root.arg, depth));
     case 'eqRec': return eqRec(root.motive, compile(root.reflCase, depth), root.left, root.right, root.equality);
     case 'natRec': {
+      // Case goals omit the original induction variable. Reinsert that binder
+      // when compiling back into the surrounding proof context.
+      const motive = shift(root.motive, 1);
       const successorCase = lambda(
         Nat,
-        lambda(app(shift(root.motive, 1), variable(0, 'n')), compile(root.succCase, depth + 2), 'IH'),
+        lambda(app(shift(motive, 1), variable(0, 'n')), shift(compile(root.succCase, depth + 2), 1, 2), 'IH'),
         'n',
       );
-      return natRec(root.motive, compile(root.zeroCase, depth), successorCase, root.scrutinee);
+      return natRec(motive, shift(compile(root.zeroCase, depth), 1), successorCase, root.scrutinee);
     }
   }
 }
