@@ -105,18 +105,31 @@ export function inferLambdaApplication(lambdaTerm: Term, arg: Term): Term {
 }
 
 export function show(term: Term): string {
+  return showWithBinders(term, []);
+}
+
+function showWithBinders(term: Term, binders: readonly string[]): string {
+  const render = (child: Term): string => showWithBinders(child, binders);
   switch (term.kind) {
     case 'Type': return 'Type';
     case 'Nat': return 'Nat';
     case 'Zero': return '0';
-    case 'Var': return term.name ?? `#${term.index}`;
-    case 'Pi': return `(x : ${show(term.domain)}) -> ${show(term.body)}`;
-    case 'Lambda': return `(fun x : ${show(term.domain)} => ${show(term.body)})`;
-    case 'App': return `(${show(term.fn)} ${show(term.arg)})`;
-    case 'Succ': return `(Succ ${show(term.value)})`;
-    case 'NatRec': return `(Nat.rec ${show(term.motive)} ${show(term.zeroCase)} ${show(term.succCase)} ${show(term.scrutinee)})`;
-    case 'Eq': return `Eq ${show(term.type)} ${show(term.left)} ${show(term.right)}`;
-    case 'Refl': return `refl ${show(term.value)}`;
+    // Names on variables are presentation metadata and can be stale after
+    // substitution. Bound occurrences must follow their de Bruijn index.
+    case 'Var': return binders[binders.length - 1 - term.index] ?? term.name ?? `#${term.index}`;
+    case 'Pi': case 'Lambda': {
+      const preferred = term.name ?? 'x';
+      let name = preferred;
+      for (let suffix = 1; binders.includes(name); suffix += 1) name = `${preferred}${suffix}`;
+      const domain = render(term.domain);
+      const body = showWithBinders(term.body, [...binders, name]);
+      return term.kind === 'Pi' ? `(${name} : ${domain}) -> ${body}` : `(fun ${name} : ${domain} => ${body})`;
+    }
+    case 'App': return `(${render(term.fn)} ${render(term.arg)})`;
+    case 'Succ': return `(Succ ${render(term.value)})`;
+    case 'NatRec': return `(Nat.rec ${render(term.motive)} ${render(term.zeroCase)} ${render(term.succCase)} ${render(term.scrutinee)})`;
+    case 'Eq': return `Eq ${render(term.type)} ${render(term.left)} ${render(term.right)}`;
+    case 'Refl': return `refl ${render(term.value)}`;
     case 'EqRec': return `(Eq.rec ...)`;
   }
 }
