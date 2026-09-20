@@ -8,6 +8,10 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("UI root element #app was not found");
 const root = app;
 
+// Keep the active proof and progress for the lifetime of this page. Hash
+// navigation only remounts the view; selecting an exercise still resets it.
+const renderProofCourse = createProofCourse();
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
 }
@@ -16,7 +20,7 @@ function renderKVRoute(): void {
   renderKVCacheLab(root);
 }
 
-function renderProofCourse(): void {
+function createProofCourse(): () => void {
   const engine = new RealProofEngine();
   let currentExerciseId = NATURAL_NUMBERS_LESSON.exercises[0].id;
   let state: ProofStateView | null = initialTheoremState(NATURAL_NUMBERS_LESSON.exercises[0], (id) => engine.loadTheorem(id));
@@ -98,6 +102,7 @@ function renderProofCourse(): void {
     root.querySelector<HTMLButtonElement>("#next-button")?.addEventListener("click", () => { if (next) selectExercise(next); });
     const input = root.querySelector<HTMLInputElement>("#tactic-input");
     const apply = root.querySelector<HTMLButtonElement>("#apply-button");
+    input?.addEventListener("input", () => { tacticInputValue = input.value; });
     const applyTactic = () => {
       if (!input || !state) return;
       tacticInputValue = input.value;
@@ -124,7 +129,7 @@ function renderProofCourse(): void {
     input?.addEventListener("keydown", (event) => { if (event.key === "Enter") applyTactic(); });
   }
 
-  render();
+  return render;
 }
 
 function renderRoute(): void {
