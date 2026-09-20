@@ -2,6 +2,13 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+The real proof interface and theorem palette expose the library's completed
+natural-number proofs: `add_zero`, `zero_add`, `succ_add`, `add_succ`, `add_assoc`,
+`add_comm`, and `add_two_three`. Use `exact add_zero` for its full theorem, or
+pass parameters such as `exact (add_zero n)` after introducing `n`. The aliases
+also work in `apply` and `rewrite` terms; matching local names take precedence.
+The existing restrictions of each tactic still apply.
+
 ## Architecture
 
 ```text

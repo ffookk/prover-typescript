@@ -1,14 +1,17 @@
 import { elaborate } from "../elaborator/elaborate";
+import { GlobalEnvironment } from "../environment/environment";
 import { parse } from "../parser/parser";
 import { proofState, type ProofState } from "../proof/state";
 import { tacticSession, TacticError, type TacticSession } from "../proof/tactic";
 import { show } from "../kernel/typecheck";
 import { type Term as CoreTerm, Nat, Zero, variable, pi, eq, app } from "../syntax/ast";
-import { add, addTerm } from "../library/nat";
-import { addZeroType } from "../library/add-zero";
-import { zeroAddType } from "../library/zero-add";
-import { succAddType } from "../library/succ-add";
+import { add, addTerm, addTwoThreeProof } from "../library/nat";
+import { addZeroProof, addZeroType } from "../library/add-zero";
+import { zeroAddProof, zeroAddType } from "../library/zero-add";
+import { succAddProof, succAddType } from "../library/succ-add";
 import { addSuccProof, addSuccType } from "../library/add-succ";
+import { addAssocProof } from "../library/add-assoc";
+import { addCommProof } from "../library/add-comm";
 import { definitionalEqual, shift, whnf } from "../kernel/reduction";
 
 export interface ContextEntryView { name: string; type: string; }
@@ -225,8 +228,17 @@ function toView(theoremName: string, state: ProofState): ProofStateView {
   };
 }
 
+const libraryTheorems = {
+  add_succ: addSuccProof, add_zero: addZeroProof, zero_add: zeroAddProof,
+  succ_add: succAddProof, add_assoc: addAssocProof, add_comm: addCommProof,
+  add_two_three: addTwoThreeProof,
+};
+const theoremEnvironment = new GlobalEnvironment();
+for (const [name, proof] of Object.entries(libraryTheorems)) theoremEnvironment.define(name, proof);
+export const AVAILABLE_THEOREM_LIST = Object.keys(libraryTheorems).map(id => ({ id, label: id }));
+
 function parseArgument(source: string, context: readonly { name: string }[]): CoreTerm {
-  return elaborate(parse(source), context.map((entry) => entry.name));
+  return elaborate(parse(source), context.map((entry) => entry.name), theoremEnvironment);
 }
 
 export class RealProofEngine implements ProofEngine {
@@ -278,10 +290,7 @@ export class RealProofEngine implements ProofEngine {
           if (!argument) throw new TacticError("exact expects a term");
           const goal = this.session.currentGoal();
           if (!goal) throw new TacticError("No goals remain");
-          // Tutorial theorem aliases are resolved at the UI adapter boundary;
-          // the resulting Core term still crosses the normal Kernel check.
-          const term = argument === "add_succ" ? addSuccProof : parseArgument(argument, goal.context);
-          this.session = this.session.exact(term);
+          this.session = this.session.exact(parseArgument(argument, goal.context));
           break;
         }
         case "apply": {
