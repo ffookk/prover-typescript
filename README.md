@@ -515,3 +515,24 @@ git diff --check  -> success
 ```
 
 The Kernel remains independent of Chapter, Exercise, UI, and tactic metadata.
+## Inspecting terms in the REPL
+
+Use `#check term` to display a term's inferred type and `#eval term` to display
+its normalized value. Both commands elaborate names from the current environment
+and type-check the term before returning a result. Neither command defines or
+changes a name. Bare expressions continue to display their inferred type.
+
+```text
+> def twice := (x : Nat) => Succ (Succ x)
+defined twice
+> #check twice 0
+Nat
+> #eval twice 0
+(Succ (Succ 0))
+> #eval ((A : Type) => (x : A) => x) Nat 1
+(Succ 0)
+```
+
+Start the REPL with `npm run build` followed by `node dist/src/index.js`. Values
+use the existing Core term display, so natural numbers appear as `Succ`/`0`
+constructors. Evaluation uses the existing normalizer and its current limits.
