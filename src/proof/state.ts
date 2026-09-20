@@ -84,11 +84,11 @@ export function replaceGoal(state: ProofState, index: number, replacement: reado
   if (!Number.isInteger(index) || index < 0 || index >= state.goals.length) {
     throw new RangeError(`Goal index out of range: ${index}`);
   }
-  const nextGoals = [
+  const nextGoals = normalizeGoals([
     ...state.goals.slice(0, index),
     ...replacement,
     ...state.goals.slice(index + 1),
-  ];
+  ]);
   const nextFocus = nextGoals.some(item => item.id === state.focusedGoalId)
     ? state.focusedGoalId
     : (nextGoals[index]?.id ?? nextGoals[index - 1]?.id ?? null);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GlobalEnvironment } from '../src/environment/environment';
-import { focusGoal, focusNext, focusPrevious, initialProofState, goal, proofState, replaceGoal } from '../src/proof/state';
+import { currentGoal, focusGoal, focusNext, focusPrevious, initialProofState, goal, proofState, replaceGoal } from '../src/proof/state';
 import { Nat, Type, variable } from '../src/syntax/ast';
 
 test('proof state starts with one Core-level goal and an empty context', () => {
@@ -90,3 +90,41 @@ test('solving the focused goal leaves other goals and selects the next goal', ()
   assert.equal(updated.focusedGoalId, state.goals[2].id);
 });
 
+test('replacing the focused middle goal focuses its first generated goal without an explicit ID', () => {
+  const original = proofState([goal([], Nat), goal([], Nat), goal([], Nat)]);
+  const state = focusGoal(original, original.goals[1].id!);
+  const replacement = [
+    { context: [], type: Type, caseName: 'first' },
+    { context: [], type: Nat, caseName: 'second' },
+  ];
+
+  const updated = replaceGoal(state, 1, replacement);
+
+  assert.equal(currentGoal(updated)?.caseName, 'first');
+  assert.equal(updated.focusedGoalId, updated.goals[1].id);
+  assert.equal(updated.goals[0].id, state.goals[0].id);
+  assert.equal(updated.goals[3].id, state.goals[2].id);
+  assert.equal(new Set(updated.goals.map(item => item.id)).size, 4);
+  assert.equal(currentGoal(state), state.goals[1]);
+  assert.equal('id' in replacement[0], false);
+});
+
+test('replacing the focused last goal focuses its replacement without an explicit ID', () => {
+  const original = proofState([goal([], Nat), goal([], Nat)]);
+  const state = focusGoal(original, original.goals[1].id!);
+
+  const updated = replaceGoal(state, 1, [{ context: [], type: Type }]);
+
+  assert.equal(currentGoal(updated)?.type, Type);
+  assert.equal(updated.focusedGoalId, updated.goals[1].id);
+});
+
+test('replacing an unfocused goal without an explicit ID preserves the current focus', () => {
+  const original = proofState([goal([], Nat), goal([], Type), goal([], Nat)]);
+  const state = focusGoal(original, original.goals[2].id!);
+
+  const updated = replaceGoal(state, 1, [{ context: [], type: Nat }]);
+
+  assert.equal(updated.focusedGoalId, state.focusedGoalId);
+  assert.deepEqual(currentGoal(updated), currentGoal(state));
+});
