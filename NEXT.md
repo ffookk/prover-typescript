@@ -1,21 +1,21 @@
 # prover-typescript — NEXT
 
-当前工作区已完成 M18 — Metavariables，并完成其后的 Multi-Goal / Case / Proof UX 基础设施。
+The current workspace has completed M18 — Metavariables and the subsequent Multi-Goal / Case / Proof UX infrastructure.
 
-## 当前验证
+## Current verification
 
 ```text
 npm run build -> success
 npm test      -> 139 tests / 139 passed / 0 failed
 ```
 
-`npm` 工具包装器在本机返回过 `spawn EINVAL`，因此本轮验证通过 PowerShell 直接执行 `npm run build` / `npm test` 完成；命令本身成功。
+The local `npm` tool wrapper returned `spawn EINVAL`, so this verification run executed `npm run build` / `npm test` directly through PowerShell; the commands themselves succeeded.
 
 ## Multi-Goal / Case / Proof UX — complete
 
-本阶段只扩展 Proof Engine / Proof UX，不增加 Kernel 语义。
+This stage extends only the Proof Engine / Proof UX and adds no Kernel semantics.
 
-新增能力：
+Added capabilities:
 
 ```text
 GoalId
@@ -28,13 +28,13 @@ automatic focus after goal completion
 REPL ProofState formatter
 ```
 
-Goal identity 是稳定的 Proof Engine metadata；Goal 完成或重新排序不会复用 identity。Case name 同样只用于 ProofState / UI 展示，不进入 Core term 或 Kernel。
+Goal identity is stable Proof Engine metadata; identities are not reused when goals are completed or reordered. Case names are likewise used only for ProofState / UI display and do not enter Core terms or the Kernel.
 
-Tactic session 现在明确以 focused goal 为目标。`intro`、`exact`、`rfl`、`assumption`、`apply` 失败时保持原 session 不变；成功解决当前 goal 后按生成顺序继续 focus 下一个 pending goal，若没有后继则选择前一个。
+The tactic session now explicitly targets the focused goal. Failed `intro`, `exact`, `rfl`, `assumption`, or `apply` tactics preserve the original session. After the current goal is solved, focus moves to the next pending goal in creation order, or to the previous goal if no successor remains.
 
-`apply` 仍保持 M17 的边界：只支持非 dependent Pi arguments；本阶段没有实现 unification。
+`apply` retains the M17 boundary: only non-dependent Pi arguments are supported; this stage does not implement unification.
 
-REPL 层新增 `formatProofState`，可以展示：
+The REPL layer adds `formatProofState`, which can display:
 
 ```text
 Goals:
@@ -47,16 +47,16 @@ Goals:
   ⊢ C
 ```
 
-无 goals 时显示：
+When there are no goals, it displays:
 
 ```text
 No goals.
 Proof complete.
 ```
 
-测试覆盖稳定 Goal identity、focus navigation、case metadata、focused tactic、自动 focus、失败回滚、REPL display，以及最终 proof 仍经 Kernel inference/check。
+Tests cover stable goal identity, focus navigation, case metadata, focused tactics, automatic focus, rollback on failure, REPL display, and continued Kernel inference/check of the final proof.
 
-### 明确未实现
+### Explicitly not implemented
 
 ```text
 unification
@@ -76,17 +76,17 @@ by parser
 
 ### Kernel boundary
 
-本阶段没有向 `src/kernel/` 添加 ProofState、Tactic、GoalId、Case 或 metavariable 依赖。Case / focus / goal identity 全部停留在 Proof Engine 层；proof extraction 后仍形成 Core `Term` 并交给 Kernel。
+This stage adds no ProofState, Tactic, GoalId, Case, or metavariable dependencies to `src/kernel/`. Case / focus / goal identity remain entirely in the Proof Engine layer; proof extraction still produces a Core `Term` for the Kernel.
 
 ## Post-M19 next stage
 
-下一阶段才是：
+The next stage is:
 
 ```text
 M20 — Implicit Arguments
 ```
 
-M19 已完成；不自动开始 M20。
+M19 is complete; do not begin M20 automatically.
 
 ## UI-2 — Mock Proof Interaction — complete
 
