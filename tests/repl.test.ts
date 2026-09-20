@@ -42,6 +42,25 @@ test('failed and recursive definitions do not enter the environment', () => {
   assert.equal(environment.lookup('loop'), undefined);
 });
 
+test('reserved declaration names do not enter the environment or hide builtins', () => {
+  const environment = new GlobalEnvironment();
+  processLine('def zero := 0', environment);
+  const original = environment.lookup('zero');
+  for (const name of ['Type', 'Nat', 'Succ', 'Eq', 'Refl']) {
+    assert.throws(() => processLine(`def ${name} := 0`, environment), /Reserved definition name/);
+    assert.equal(environment.lookup(name), undefined);
+    assert.throws(() => processLine(`theorem ${name} : Eq Nat 0 0 := Refl Nat 0`, environment), /Reserved theorem name/);
+    assert.equal(environment.lookup(name), undefined);
+  }
+  assert.equal(environment.lookup('zero'), original);
+  assert.equal(processLine('zero', environment), 'Nat');
+  assert.equal(processLine('Type', environment), 'Type');
+  assert.equal(processLine('Nat', environment), 'Type');
+  assert.equal(processLine('Succ zero', environment), 'Nat');
+  assert.equal(processLine('Eq Nat zero zero', environment), 'Type');
+  assert.equal(processLine('Refl Nat zero', environment), 'Eq Nat 0 0');
+});
+
 test('local bindings shadow global definitions', () => {
   const environment = new GlobalEnvironment();
   assert.equal(processLine('def x := 0', environment), 'defined x');

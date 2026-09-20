@@ -1,5 +1,5 @@
 import { SurfaceTerm } from '../syntax/surface';
-import { ParseError, parse } from './parser';
+import { ParseError, isReservedIdentifier, parse } from './parser';
 
 export type Command =
   | { readonly kind: 'term'; readonly term: SurfaceTerm }
@@ -15,6 +15,7 @@ export function parseCommand(input: string): Command {
     if (!match) throw new ParseError("Expected 'def name := term'");
     const [, name, termSource] = match;
     if (!identifierPattern.test(name)) throw new ParseError(`Invalid definition name: ${name}`);
+    if (isReservedIdentifier(name)) throw new ParseError(`Reserved definition name: ${name}`);
     if (termSource.trim() === '') throw new ParseError('Expected a term after :=');
     return { kind: 'def', name, term: parse(termSource) };
   }
@@ -23,6 +24,7 @@ export function parseCommand(input: string): Command {
     if (!match) throw new ParseError("Expected 'theorem name : proposition := proof'");
     const [, name, propositionSource, proofSource] = match;
     if (!identifierPattern.test(name)) throw new ParseError(`Invalid theorem name: ${name}`);
+    if (isReservedIdentifier(name)) throw new ParseError(`Reserved theorem name: ${name}`);
     if (propositionSource.trim() === '') throw new ParseError('Expected a proposition after :');
     if (proofSource.trim() === '') throw new ParseError('Expected a proof after :=');
     return { kind: 'theorem', name, proposition: parse(propositionSource), proof: parse(proofSource) };

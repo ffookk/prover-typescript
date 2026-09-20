@@ -16,6 +16,9 @@ type TokenKind = 'identifier' | 'number' | 'lparen' | 'rparen' | 'colon' | 'arro
 interface Token { readonly kind: TokenKind; readonly text: string; readonly position: number; }
 export class ParseError extends Error { constructor(message: string) { super(message); this.name = 'ParseError'; } }
 
+const reservedIdentifiers = new Set(['Type', 'Nat', 'Succ', 'Eq', 'Refl']);
+export function isReservedIdentifier(name: string): boolean { return reservedIdentifiers.has(name); }
+
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
   let position = 0;
@@ -59,6 +62,7 @@ class Parser {
   private parseBinder(): SurfaceTerm {
     this.expect('lparen');
     const name = this.expect('identifier').text;
+    if (isReservedIdentifier(name)) throw this.error(`Reserved binder name: ${name}`);
     this.expect('colon');
     const domain = this.parseTerm();
     this.expect('rparen');

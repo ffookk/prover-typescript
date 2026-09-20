@@ -39,3 +39,21 @@ test('command parser rejects malformed theorem declarations', () => {
   assert.throws(() => parseCommand('theorem id :='), /Expected 'theorem name : proposition := proof'/);
   assert.throws(() => parseCommand('theorem id : Nat :='), /Expected a proof after :=/);
 });
+
+test('command parser rejects constructor keywords as declaration names', () => {
+  for (const name of ['Type', 'Nat', 'Succ', 'Eq', 'Refl']) {
+    assert.throws(() => parseCommand(`def ${name} := 0`), {
+      name: 'ParseError', message: `Reserved definition name: ${name}`,
+    });
+    assert.throws(() => parseCommand(`theorem ${name} : Eq Nat 0 0 := Refl Nat 0`), {
+      name: 'ParseError', message: `Reserved theorem name: ${name}`,
+    });
+  }
+});
+
+test('command parser keeps lowercase and keyword-prefixed names available', () => {
+  for (const name of ['type', 'nat', 'succ', 'eq', 'refl', 'Natural', "Nat'"]) {
+    assert.equal(parseCommand(`def ${name} := 0`).kind, 'def');
+    assert.equal(parseCommand(`theorem ${name} : Eq Nat 0 0 := Refl Nat 0`).kind, 'theorem');
+  }
+});
