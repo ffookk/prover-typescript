@@ -2,6 +2,8 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+Surface terms and REPL input accept `--` [line comments](docs/line-comments.md) for explanatory notes.
+
 ## Architecture
 
 ```text

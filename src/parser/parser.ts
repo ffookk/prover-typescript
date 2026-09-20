@@ -16,6 +16,11 @@ type TokenKind = 'identifier' | 'number' | 'lparen' | 'rparen' | 'colon' | 'arro
 interface Token { readonly kind: TokenKind; readonly text: string; readonly position: number; }
 export class ParseError extends Error { constructor(message: string) { super(message); this.name = 'ParseError'; } }
 
+/** Blank line comments without changing token offsets or joining adjacent tokens. */
+export function stripLineComments(input: string): string {
+  return input.replace(/--[^\r\n]*/g, comment => ' '.repeat(comment.length));
+}
+
 function tokenize(input: string): Token[] {
   const tokens: Token[] = [];
   let position = 0;
@@ -112,4 +117,4 @@ class Parser {
   private error(message: string): ParseError { return new ParseError(`${message} at position ${this.current.position}`); }
 }
 
-export function parse(input: string): SurfaceTerm { return new Parser(input).parse(); }
+export function parse(input: string): SurfaceTerm { return new Parser(stripLineComments(input)).parse(); }
