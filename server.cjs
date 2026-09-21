@@ -13,6 +13,7 @@ http.createServer((req, res) => {
   if (!filePath.startsWith(root + path.sep)) { res.writeHead(403); res.end("Forbidden"); return; }
   fs.stat(filePath, (error, stats) => {
     if (!error && stats.isFile()) return sendFile(filePath, res);
+    if (path.extname(relative)) { res.writeHead(404, { "Content-Type":"text/plain; charset=utf-8" }); res.end("Not found"); return; }
     const indexPath = path.join(root, "index.html");
     fs.stat(indexPath, (indexError, indexStats) => {
       if (indexError || !indexStats.isFile()) { res.writeHead(404, { "Content-Type":"text/plain; charset=utf-8" }); res.end("Web build not found. Run npm run build:web first."); return; }
