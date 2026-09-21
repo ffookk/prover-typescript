@@ -160,7 +160,12 @@ export class TacticSession {
     const hole = this.firstHole();
     const type = whnf(hole.goal.type);
     if (type.kind !== 'Pi') throw new TacticError(`intro expected a function goal, found ${show(type)}`);
-    const newGoal = goal([...hole.goal.context, { name: type.name ?? 'x', type: type.domain }], type.body, hole.goal.caseName);
+    let name = type.name ?? 'x';
+    if (type.name === undefined) {
+      let suffix = 0;
+      while (hole.goal.context.some(entry => entry.name === name)) name = `x${++suffix}`;
+    }
+    const newGoal = goal([...hole.goal.context, { name, type: type.domain }], type.body, hole.goal.caseName);
     const child = { id: newGoal.id!, goal: newGoal, depth: hole.depth + 1 };
     const root = replaceNode(this.root, hole.id, { kind: 'lambda', domain: type.domain, name: type.name, body: { kind: 'hole', id: child.id } });
     return this.withReplacement(hole.id, [child], root);
