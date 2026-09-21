@@ -105,6 +105,7 @@ export function inferLambdaApplication(lambdaTerm: Term, arg: Term): Term {
 }
 
 export function show(term: Term): string {
+  const argument = (child: Term): string => child.kind === 'Pi' ? `(${show(child)})` : show(child);
   switch (term.kind) {
     case 'Type': return 'Type';
     case 'Nat': return 'Nat';
@@ -112,10 +113,10 @@ export function show(term: Term): string {
     case 'Var': return term.name ?? `#${term.index}`;
     case 'Pi': return `(x : ${show(term.domain)}) -> ${show(term.body)}`;
     case 'Lambda': return `(fun x : ${show(term.domain)} => ${show(term.body)})`;
-    case 'App': return `(${show(term.fn)} ${show(term.arg)})`;
+    case 'App': return `(${argument(term.fn)} ${argument(term.arg)})`;
     case 'Succ': return `(Succ ${show(term.value)})`;
     case 'NatRec': return `(Nat.rec ${show(term.motive)} ${show(term.zeroCase)} ${show(term.succCase)} ${show(term.scrutinee)})`;
-    case 'Eq': return `Eq ${show(term.type)} ${show(term.left)} ${show(term.right)}`;
+    case 'Eq': return `Eq ${argument(term.type)} ${argument(term.left)} ${argument(term.right)}`;
     case 'Refl': return `refl ${show(term.value)}`;
     case 'EqRec': return `(Eq.rec ...)`;
   }
