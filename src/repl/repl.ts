@@ -47,19 +47,23 @@ export async function startRepl(
   const environment = new GlobalEnvironment();
   let closed = false;
   rl.on('close', () => { closed = true; });
-  output.write('prover-typescript REPL\n');
-  rl.prompt();
-  for await (const line of rl) {
-    try {
-      const result = processLine(line, environment);
-      if (result === null) { rl.close(); return; }
-      if (result !== '') output.write(`${result}\n`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const kind = error instanceof Error ? error.name : 'Error';
-      output.write(`Error [${kind}]: ${message}\n`);
-    }
-    if (closed) break;
+  try {
+    output.write('prover-typescript REPL\n');
     rl.prompt();
+    for await (const line of rl) {
+      try {
+        const result = processLine(line, environment);
+        if (result === null) { rl.close(); return; }
+        if (result !== '') output.write(`${result}\n`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const kind = error instanceof Error ? error.name : 'Error';
+        output.write(`Error [${kind}]: ${message}\n`);
+      }
+      if (closed) break;
+      rl.prompt();
+    }
+  } finally {
+    rl.close();
   }
 }
