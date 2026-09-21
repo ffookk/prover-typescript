@@ -2,7 +2,6 @@ import { elaborate } from "../elaborator/elaborate";
 import { parse } from "../parser/parser";
 import { proofState, type ProofState } from "../proof/state";
 import { tacticSession, TacticError, type TacticSession } from "../proof/tactic";
-import { show } from "../kernel/typecheck";
 import { type Term as CoreTerm, Nat, Zero, variable, pi, eq, app } from "../syntax/ast";
 import { add, addTerm } from "../library/nat";
 import { addZeroType } from "../library/add-zero";
@@ -102,10 +101,29 @@ function isAddRecursor(term: Extract<CoreTerm, { kind: "NatRec" }>): boolean {
   return succBody.kind === "Succ" && succBody.value.kind === "Var" && succBody.value.index === 0;
 }
 
+function displaysAsAddition(term: CoreTerm): boolean {
+  return (term.kind === "App" && term.fn.kind === "App" && term.fn.fn === add)
+    || (term.kind === "NatRec" && isAddRecursor(term));
+}
+
+function displayBinderName(name: string | undefined, boundNames: readonly string[]): string {
+  const base = name ?? `x${boundNames.length + 1}`;
+  let fresh = base;
+  for (let suffix = 1; boundNames.includes(fresh); suffix += 1) fresh = `${base}${suffix}`;
+  return fresh;
+}
+
 function formatDisplayTerm(term: CoreTerm, boundNames: readonly string[] = []): string {
   const formatAddOperand = (operand: CoreTerm): string => {
     const rendered = formatDisplayTerm(operand, boundNames);
-    return operand.kind === "Succ" && operand.value.kind === "App" ? `(${rendered})` : rendered;
+    return displaysAsAddition(operand) || (operand.kind === "Succ" && operand.value.kind === "App") ? `(${rendered})` : rendered;
+  };
+
+  const formatOperand = (operand: CoreTerm, application = false): string => {
+    const rendered = formatDisplayTerm(operand, boundNames);
+    const needsParentheses = operand.kind === "Pi" || operand.kind === "Eq"
+      || (application && (displaysAsAddition(operand) || operand.kind === "Refl" || operand.kind === "Succ"));
+    return needsParentheses ? `(${rendered})` : rendered;
   };
 
   switch (term.kind) {
@@ -114,9 +132,9 @@ function formatDisplayTerm(term: CoreTerm, boundNames: readonly string[] = []): 
     case "Zero": return "0";
     case "Succ": {
       const rendered = formatDisplayTerm(term.value, boundNames);
-      return term.value.kind === "App" || term.value.kind === "Succ" ? `Succ (${rendered})` : `Succ ${rendered}`;
+      return term.value.kind === "App" || term.value.kind === "Succ" || displaysAsAddition(term.value) ? `Succ (${rendered})` : `Succ ${rendered}`;
     }
-    case "Var": return term.name ?? boundNames[term.index] ?? `v${term.index}`;
+    case "Var": return boundNames[term.index] ?? term.name ?? `v${term.index}`;
     case "Pi": {
       const names: string[] = [];
       let current: CoreTerm = term;
@@ -129,7 +147,7 @@ function formatDisplayTerm(term: CoreTerm, boundNames: readonly string[] = []): 
       while (current.kind === "Pi") {
         const currentDomain = formatDisplayTerm(current.domain, bodyNames);
         if (names.length > 0 && currentDomain !== domainText) break;
-        const name = current.name ?? `x${boundNames.length + names.length + 1}`;
+        const name = displayBinderName(current.name, bodyNames);
         names.push(name);
         bodyNames = [name, ...bodyNames];
         if (current.body.kind !== "Pi") {
@@ -141,29 +159,31 @@ function formatDisplayTerm(term: CoreTerm, boundNames: readonly string[] = []): 
       const name = names[0];
       return `(${name} : ${domainText}) → ${formatDisplayTerm(term.body, [name, ...boundNames])}`;
     }
-    case "Eq": return `${formatDisplayTerm(term.left, boundNames)} = ${formatDisplayTerm(term.right, boundNames)}`;
+    case "Lambda": {
+      const name = displayBinderName(term.name, boundNames);
+      return `(fun ${name} : ${formatDisplayTerm(term.domain, boundNames)} => ${formatDisplayTerm(term.body, [name, ...boundNames])})`;
+    }
+    case "Eq": return `${formatOperand(term.left)} = ${formatOperand(term.right)}`;
     case "App": {
       // `add` is encoded as a dependent lambda/recursor in Core, but users
       // should see the surface notation in the tutorial.
       if (term.fn.kind === "App" && term.fn.fn === add) {
         return `${formatAddOperand(term.fn.arg)} + ${formatAddOperand(term.arg)}`;
       }
-      return `(${formatDisplayTerm(term.fn, boundNames)} ${formatDisplayTerm(term.arg, boundNames)})`;
+      return `(${formatOperand(term.fn, true)} ${formatOperand(term.arg, true)})`;
     }
     case "NatRec": {
       if (isAddRecursor(term)) {
-        return `${formatDisplayTerm(term.scrutinee, boundNames)} + ${formatDisplayTerm(term.zeroCase, boundNames)}`;
+        return `${formatAddOperand(term.scrutinee)} + ${formatAddOperand(term.zeroCase)}`;
       }
-      // Nat.rec introduces one binder in its motive and two binders (n, ih)
-      // in its successor case; keep those names in the UI instead of showing
-      // de Bruijn indices such as #0 and #1.
-      return `(Nat.rec ${formatDisplayTerm(term.motive, boundNames)} ${formatDisplayTerm(term.zeroCase, boundNames)} ${formatDisplayTerm(term.succCase, ["ih", "n", ...boundNames])} ${formatDisplayTerm(term.scrutinee, boundNames)})`;
+      // The motive and successor case carry their own lambda binders.
+      // Pass the surrounding scope through without introducing them twice.
+      return `(Nat.rec ${formatOperand(term.motive, true)} ${formatOperand(term.zeroCase, true)} ${formatOperand(term.succCase, true)} ${formatOperand(term.scrutinee, true)})`;
     }
-    case "Refl": return `refl ${formatDisplayTerm(term.value, boundNames)}`;
+    case "Refl": return `refl ${formatOperand(term.value, true)}`;
     case "EqRec": {
-      return `(Eq.rec ${formatDisplayTerm(term.motive, boundNames)} ${formatDisplayTerm(term.reflCase, boundNames)} ${formatDisplayTerm(term.left, boundNames)} ${formatDisplayTerm(term.right, boundNames)} ${formatDisplayTerm(term.equality, boundNames)})`;
+      return `(Eq.rec ${formatOperand(term.motive, true)} ${formatOperand(term.reflCase, true)} ${formatOperand(term.left, true)} ${formatOperand(term.right, true)} ${formatOperand(term.equality, true)})`;
     }
-    default: return show(term);
   }
 }
 

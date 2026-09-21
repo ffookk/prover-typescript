@@ -129,7 +129,7 @@ test("display projection renders the induction hypothesis using surface notation
       { name: "n", type: "Nat" },
       { name: "IH", type: "n + 0 = n" },
     ],
-    goal: "Succ n + 0 = Succ n",
+    goal: "Succ (n + 0) = Succ n",
   });
 });
 
@@ -143,8 +143,8 @@ test("rewrite keeps an induction hypothesis as an equality", () => {
   const rewritten = engine.runTactic("rewrite IH");
   assert.equal(rewritten.kind, "success", rewritten.kind === "error" ? rewritten.message : "");
   assert.equal(rewritten.state.goals[0].context[1].name, "IH");
-  assert.equal(rewritten.state.goals[0].context[1].type, "n + Succ 0 = Succ n + 0");
-  assert.equal(rewritten.state.goals[0].target, "Succ (Succ n + 0) = Succ (Succ n + 0)");
+  assert.equal(rewritten.state.goals[0].context[1].type, "n + Succ 0 = Succ (n + 0)");
+  assert.equal(rewritten.state.goals[0].target, "Succ (Succ (n + 0)) = Succ (Succ (n + 0))");
   assert.equal(engine.runTactic("rfl").kind, "success");
 });
 test("real engine supports intro followed by rfl", () => {
