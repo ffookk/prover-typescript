@@ -1,8 +1,6 @@
 name: Deploy Natural Number Game to GitHub Pages
 
 on:
-  push:
-    branches: [master, feat/kv-cache-proof-lab]
   workflow_dispatch:
 
 permissions:
