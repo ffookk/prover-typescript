@@ -3,6 +3,7 @@ import { renderBracketedExpression } from "./bracket-renderer";
 import { RealProofEngine, REAL_THEOREM_LIST, TACTICS, type DisplayProofState, type ProofStateView } from "./proof-engine";
 import { NATURAL_NUMBERS_LESSON, initialLessonProgress, initialTheoremState, isCompleted, nextExercise, recordProofResult, type Exercise } from "./tutorial";
 import { renderKVCacheLab } from "./kv-cache-lab";
+import { MAX_PROOF_SCRIPT_LENGTH, MAX_PROOF_SCRIPT_COMMANDS } from "./proof-script";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("UI root element #app was not found");
@@ -24,6 +25,8 @@ function renderProofCourse(): void {
   let statusMessage = "Real Proof Engine";
   let statusKind: "neutral" | "success" | "error" = "neutral";
   let tacticInputValue = "";
+  let scriptInputValue = "";
+  let scriptError = "";
 
   function currentExercise(): Exercise {
     return NATURAL_NUMBERS_LESSON.exercises.find((exercise) => exercise.id === currentExerciseId) ?? NATURAL_NUMBERS_LESSON.exercises[0];
@@ -45,6 +48,10 @@ function renderProofCourse(): void {
     return `<section class="card tactic-history"><div class="card-title">Tactic History</div>${history.length ? `<ol>${history.map((tactic) => `<li><code>${escapeHtml(tactic)}</code></li>`).join("")}</ol>` : `<p class="muted">No tactics applied yet.</p>`}</section>`;
   }
 
+  function renderProofScript(): string {
+    return `<section class="card script-card"><label class="card-title" for="proof-script">Proof script</label><p id="script-help" class="muted">Run one tactic per line from the current goal. Blank lines and -- comments are allowed. If any line fails, the whole script is rolled back. Limit: ${MAX_PROOF_SCRIPT_COMMANDS} tactics.</p><textarea id="proof-script" class="tactic-input script-input" rows="6" maxlength="${MAX_PROOF_SCRIPT_LENGTH}" spellcheck="false" aria-invalid="${scriptError ? "true" : "false"}" aria-describedby="script-help${scriptError ? " script-feedback" : ""}" placeholder="-- One tactic per line">${escapeHtml(scriptInputValue)}</textarea>${scriptError ? `<div id="script-feedback" class="tactic-feedback" role="alert">${escapeHtml(scriptError)}</div>` : ""}<button id="run-script-button" class="apply-button" type="button">Run script</button></section>`;
+  }
+
   function renderTactics(): string {
     const suggestions = engine.tacticSuggestions();
     const available = suggestions.filter((tactic) => tactic.id !== "exact" && tactic.id !== "apply");
@@ -58,6 +65,8 @@ function renderProofCourse(): void {
     currentExerciseId = exercise.id;
     state = initialTheoremState(exercise, (id) => engine.loadTheorem(id));
     tacticInputValue = "";
+    scriptInputValue = "";
+    scriptError = "";
     statusKind = "neutral";
     statusMessage = "Real Proof Engine";
     render();
@@ -87,8 +96,8 @@ function renderProofCourse(): void {
           <div class="theorem-header"><div><div class="section-label">Chapter ${chapter.number} · Exercise ${exercise.number}</div><h1>${exercise.title}</h1><p class="theorem-statement"><code>${exercise.statement}</code></p></div></div>
           <section class="card"><div class="card-title">Prerequisites</div><div>${exercise.prerequisiteIds.length ? exercise.prerequisiteIds.join(" → ") : "None"}</div></section>
           <section class="card"><div class="card-title">Suggested path</div><code>${exercise.tacticHint}</code></section>
-          ${state && !state.completed && state.goals[0] ? `<div class="proof-layout"><div class="proof-main">${renderProofState(engine.displayProofState()!)}${renderTacticHistory(engine.tacticHistory())}<section class="card tactic-card"><div class="card-title">Tactic</div><input id="tactic-input" class="tactic-input" type="text" value="${escapeHtml(tacticInputValue)}" aria-invalid="${statusKind === "error" ? "true" : "false"}" aria-describedby="tactic-feedback" placeholder="intro, rfl, assumption, exact, apply, rewrite h, induction n" autocomplete="off"/>${statusKind === "error" ? `<div id="tactic-feedback" class="tactic-feedback" role="alert">${escapeHtml(statusMessage.replace(/^Proof rejected:\s*/, ""))}</div>` : ""}<button id="apply-button" class="apply-button" type="button">Apply</button></section></div>${renderTactics()}</div>` : state?.completed ? `<div class="completed-state"><strong>Proof accepted</strong><span>Accepted by the real Kernel.</span></div>` : `<section class="card unavailable-state"><strong>Unavailable</strong><span>${exercise.availabilityNote}</span></section>`}
-          <section class="proof-state" aria-live="polite"><div><div class="card-title">Proof State</div><pre class="state-message ${statusKind}">${statusMessage}</pre></div><span class="goal-count">${state?.goals.length ?? 0} ${state?.goals.length === 1 ? "goal" : "goals"}</span></section>
+          ${state && !state.completed && state.goals[0] ? `<div class="proof-layout"><div class="proof-main">${renderProofState(engine.displayProofState()!)}${renderTacticHistory(engine.tacticHistory())}<section class="card tactic-card"><div class="card-title">Tactic</div><input id="tactic-input" class="tactic-input" type="text" value="${escapeHtml(tacticInputValue)}" aria-invalid="${statusKind === "error" && !scriptError ? "true" : "false"}" aria-describedby="tactic-feedback" placeholder="intro, rfl, assumption, exact, apply, rewrite h, induction n" autocomplete="off"/>${statusKind === "error" && !scriptError ? `<div id="tactic-feedback" class="tactic-feedback" role="alert">${escapeHtml(statusMessage.replace(/^Proof rejected:\s*/, ""))}</div>` : ""}<button id="apply-button" class="apply-button" type="button">Apply</button></section>${renderProofScript()}</div>${renderTactics()}</div>` : state?.completed ? `<div class="completed-state"><strong>Proof accepted</strong><span>Accepted by the real Kernel.</span></div>` : `<section class="card unavailable-state"><strong>Unavailable</strong><span>${exercise.availabilityNote}</span></section>`}
+          <section class="proof-state" aria-live="polite"><div><div class="card-title">Proof State</div><pre class="state-message ${statusKind}">${escapeHtml(statusMessage)}</pre></div><span class="goal-count">${state?.goals.length ?? 0} ${state?.goals.length === 1 ? "goal" : "goals"}</span></section>
           <section class="goals-list" aria-label="Proof goals">${renderGoals()}</section>
           ${state?.completed && next ? `<button id="next-button" class="next-button" type="button">Next exercise →</button>` : courseComplete ? `<div class="completed-state"><strong>Course complete</strong><span>All ten exercises have Kernel-backed accepted proofs.</span></div>` : ""}
         </section>
@@ -101,6 +110,7 @@ function renderProofCourse(): void {
     const applyTactic = () => {
       if (!input || !state) return;
       tacticInputValue = input.value;
+      scriptError = "";
       const result = engine.runTactic(tacticInputValue);
       state = result.state;
       statusKind = result.kind;
@@ -109,7 +119,26 @@ function renderProofCourse(): void {
       render();
       root.querySelector<HTMLInputElement>("#tactic-input")?.focus();
     };
+    input?.addEventListener("input", () => { tacticInputValue = input.value; });
     apply?.addEventListener("click", applyTactic);
+    const scriptInput = root.querySelector<HTMLTextAreaElement>("#proof-script");
+    scriptInput?.addEventListener("input", () => { scriptInputValue = scriptInput.value; });
+    root.querySelector<HTMLButtonElement>("#run-script-button")?.addEventListener("click", () => {
+      if (!scriptInput || !state) return;
+      scriptInputValue = scriptInput.value;
+      const result = engine.runScript(scriptInputValue);
+      state = result.state;
+      statusKind = result.kind;
+      scriptError = result.kind === "error" ? result.message : "";
+      statusMessage = result.kind === "success" ? result.message : `Script rejected: ${result.message}`;
+      if (result.kind === "success") {
+        progress = recordProofResult(progress, exercise, result);
+        scriptInputValue = "";
+      }
+      render();
+      root.querySelector<HTMLTextAreaElement>("#proof-script")?.focus();
+    });
+
     root.querySelectorAll<HTMLButtonElement>("[data-tactic]").forEach((button) => button.addEventListener("click", () => {
       const syntax = button.dataset.tactic ?? "";
       if (syntax.endsWith(" ")) { if (input) { input.value = syntax; tacticInputValue = syntax; input.focus(); } }

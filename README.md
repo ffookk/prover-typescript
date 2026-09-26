@@ -2,6 +2,8 @@
 
 A small Curry–Howard proof-oriented TypeScript core with an explicit parser, elaborator, Kernel, environment, REPL, and incrementally built proof engine.
 
+The web UI supports [transactional proof scripts](docs/proof-scripts.md): paste one tactic per line, run the batch, and receive a source-line diagnostic with full rollback if any command fails.
+
 ## Architecture
 
 ```text

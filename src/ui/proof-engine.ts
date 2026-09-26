@@ -2,7 +2,7 @@ import { elaborate } from "../elaborator/elaborate";
 import { parse } from "../parser/parser";
 import { proofState, type ProofState } from "../proof/state";
 import { tacticSession, TacticError, type TacticSession } from "../proof/tactic";
-import { show } from "../kernel/typecheck";
+import { check, show } from "../kernel/typecheck";
 import { type Term as CoreTerm, Nat, Zero, variable, pi, eq, app } from "../syntax/ast";
 import { add, addTerm } from "../library/nat";
 import { addZeroType } from "../library/add-zero";
@@ -10,6 +10,7 @@ import { zeroAddType } from "../library/zero-add";
 import { succAddType } from "../library/succ-add";
 import { addSuccProof, addSuccType } from "../library/add-succ";
 import { definitionalEqual, shift, whnf } from "../kernel/reduction";
+import { parseProofScript, ProofScriptError } from "./proof-script";
 
 export interface ContextEntryView { name: string; type: string; }
 export interface GoalView { id: string; target: string; context: ContextEntryView[]; }
@@ -23,6 +24,9 @@ export interface TacticDescriptor {
   canApply: (goal: import("../proof/state").Goal) => boolean;
 }
 export type ProofResult = { kind: "success"; state: ProofStateView; message?: string } | { kind: "error"; message: string; state: ProofStateView };
+export type ProofScriptResult =
+  | { kind: "success"; state: ProofStateView; message: string; commandsExecuted: number }
+  | { kind: "error"; message: string; state: ProofStateView; line?: number };
 export interface ProofEngine { loadTheorem(id: string): ProofStateView; runTactic(tactic: string): ProofResult; tacticSuggestions(): TacticDescriptor[]; tacticHistory(): string[]; }
 
 interface MockTheorem { name: string; goals: GoalView[]; }
@@ -231,12 +235,14 @@ function parseArgument(source: string, context: readonly { name: string }[]): Co
 
 export class RealProofEngine implements ProofEngine {
   private theoremName = "zero";
+  private theoremType: CoreTerm = REAL_THEOREMS.zero.type;
   private session: TacticSession = tacticSession(proofState([{ context: [], type: { kind: "Eq", type: { kind: "Nat" }, left: { kind: "Zero" }, right: { kind: "Zero" } } }]));
   private history: string[] = [];
 
   loadTheorem(id: string): ProofStateView {
     const theorem = REAL_THEOREMS[id] ?? REAL_THEOREMS.zero;
     this.theoremName = theorem.name;
+    this.theoremType = theorem.type;
     this.session = tacticSession(proofState([{ context: [], type: theorem.type }]));
     this.history = [];
     return cloneView(toView(this.theoremName, this.session.state));
@@ -253,6 +259,47 @@ export class RealProofEngine implements ProofEngine {
     const goal = this.session.currentGoal();
     return goal ? projectGoal(goal) : null;
   }
+
+  /** Apply a whole script to the current proof, or keep the original proof. */
+  runScript(source: string): ProofScriptResult {
+    const originalSession = this.session;
+    const originalHistory = [...this.history];
+    let line: number | undefined;
+    try {
+      const commands = parseProofScript(source);
+      let result: ProofResult | undefined;
+      for (const command of commands) {
+        line = command.line;
+        result = this.runTactic(command.tactic);
+        if (result.kind === "error") throw new ProofScriptError(result.message, line);
+      }
+      if (result!.state.completed) {
+        // The saved theorem, rather than an intermediate goal, is the final
+        // contract even when a script uses tactics that transform the target.
+        check([], this.session.proof(), this.theoremType);
+      }
+      // Parsing rejects an empty script, and runTactic checks proof extraction
+      // before returning a completed success. Keep a single tactic interpreter.
+      return {
+        kind: "success",
+        state: result!.state,
+        message: result!.state.completed ? "Proof accepted" : `Applied ${commands.length} tactic${commands.length === 1 ? "" : "s"}.`,
+        commandsExecuted: commands.length,
+      };
+    } catch (error) {
+      this.session = originalSession;
+      this.history = originalHistory;
+      const failedLine = error instanceof ProofScriptError ? error.line : line;
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        kind: "error",
+        message: failedLine === undefined ? message : `Line ${failedLine}: ${message}`,
+        ...(failedLine === undefined ? {} : { line: failedLine }),
+        state: cloneView(toView(this.theoremName, this.session.state)),
+      };
+    }
+  }
+
   runTactic(tactic: string): ProofResult {
     const source = tactic.trim();
     const currentView = () => cloneView(toView(this.theoremName, this.session.state));
@@ -330,8 +377,6 @@ export const REAL_THEOREM_LIST = Object.values(REAL_THEOREMS).map((theorem, inde
   id: theorem.name,
   label: `${String(index + 1).padStart(2, "0")}  ${theorem.name}`,
 }));
-
-
 
 
 

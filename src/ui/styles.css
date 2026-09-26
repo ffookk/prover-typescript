@@ -8,7 +8,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-button, input { font: inherit; }
+button, input, textarea { font: inherit; }
 button { border: 0; }
 
 .app-shell { min-height: 100vh; }
@@ -97,6 +97,10 @@ h1 { margin: 7px 0 0; font-size: 28px; letter-spacing: -0.025em; }
 .tactic-feedback { grid-column: 1 / -1; margin-top: -4px; color: #b42318; font-size: 14px; }
 .tactic-input:focus { border-color: #8e9aab; box-shadow: 0 0 0 3px rgba(110, 124, 145, .12); }
 .apply-button { align-self: stretch; padding: 0 18px; border-radius: 7px; background: #273449; color: #fff; font-weight: 650; }
+.script-card { display: grid; gap: 12px; }
+.script-card .muted { margin: 0; line-height: 1.5; }
+.script-input { resize: vertical; min-height: 8rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1.5; }
+.script-card .apply-button { justify-self: start; padding: 11px 18px; }
 .proof-state { display: flex; align-items: center; justify-content: space-between; padding: 20px 4px; }
 .muted { margin: 8px 0 0; color: #7a8494; font-size: 14px; }
 .goal-count { color: #697386; font-size: 13px; }
