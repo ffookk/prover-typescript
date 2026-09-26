@@ -1,0 +1,39 @@
+name: Check pull requests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck and compile
+        run: npm run build
+      - name: Run all tests
+        run: node --test "dist/tests/**/*.test.js"
+      - name: Build web app for GitHub Pages
+        run: npm run build:web
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/

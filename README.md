@@ -515,3 +515,18 @@ git diff --check  -> success
 ```
 
 The Kernel remains independent of Chapter, Exercise, UI, and tactic metadata.
+## Pull request checks
+
+The `Check pull requests` workflow compiles TypeScript, runs every compiled test
+under `dist/tests`, and builds the web app with the GitHub Pages repository base
+path. It runs for pull requests, pushes to `master`, and manual dispatches on
+Node.js 22. These checks use read-only repository permissions.
+
+To run the same checks locally:
+
+```sh
+npm ci
+npm run build
+node --test "dist/tests/**/*.test.js"
+VITE_BASE_PATH=/prover-typescript/ npm run build:web
+```
