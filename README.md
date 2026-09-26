@@ -30,6 +30,10 @@ Kernel
 
 The Kernel is the final trusted boundary. Parser, elaborator, environment, REPL, Proof State, tactics, metavariables, unification, and automation must not become Kernel dependencies.
 
+For intermediate results in the real proof interface, see [local lemmas with
+`have`](docs/local-lemmas.md). A local lemma can create a separate proof
+obligation or use an immediately checked proof.
+
 ## Milestone 16 — Proof State
 
 Milestone 16 is complete. It introduces the smallest independent Proof State model needed for later tactics, without implementing tactics or metavariables.

@@ -209,6 +209,7 @@ export const TACTICS: TacticDescriptor[] = [
   { id: "rewrite", label: "rewrite", syntax: "rewrite ", description: "Rewrite the goal using an equality hypothesis.", canApply: canRewrite },
   { id: "exact", label: "exact", syntax: "exact ", description: "Provide an exact proof term.", canApply: () => true },
   { id: "apply", label: "apply", syntax: "apply ", description: "Apply a theorem or function to the current goal.", canApply: () => true },
+  { id: "have", label: "have", syntax: "have ", description: "Introduce a local lemma with have name : type, optionally followed by := proof.", canApply: () => true },
 ];
 
 export function tacticSuggestionsForGoal(goal: import("../proof/state").Goal): TacticDescriptor[] {
@@ -227,6 +228,36 @@ function toView(theoremName: string, state: ProofState): ProofStateView {
 
 function parseArgument(source: string, context: readonly { name: string }[]): CoreTerm {
   return elaborate(parse(source), context.map((entry) => entry.name));
+}
+
+interface LocalLemmaDeclaration { readonly name: string; readonly type: string; readonly proof?: string; }
+
+/** Split the declaration wrapper; the existing term parser handles each term. */
+function parseLocalLemma(source: string): LocalLemmaDeclaration {
+  const declaration = /^([A-Za-z_][A-Za-z0-9_']*)\s*:\s*([\s\S]*)$/.exec(source);
+  if (!declaration) throw new TacticError("have expects 'have name : type' or 'have name : type := proof'");
+  const [, name, terms] = declaration;
+  let depth = 0;
+  let separator = -1;
+  for (let index = 0; index < terms.length; index += 1) {
+    if (terms[index] === "(") depth += 1;
+    else if (terms[index] === ")") {
+      depth -= 1;
+      if (depth < 0) throw new TacticError("Unbalanced parentheses in have declaration");
+    } else if (terms.startsWith(":=", index)) {
+      if (depth !== 0) throw new TacticError("The := separator in have must be outside parentheses");
+      if (separator !== -1) throw new TacticError("have accepts only one := separator");
+      separator = index;
+      index += 1;
+    }
+  }
+  if (depth !== 0) throw new TacticError("Unbalanced parentheses in have declaration");
+  const type = (separator === -1 ? terms : terms.slice(0, separator)).trim();
+  if (!type) throw new TacticError("have expects a declaration type");
+  if (separator === -1) return { name, type };
+  const proof = terms.slice(separator + 2).trim();
+  if (!proof) throw new TacticError("have expects a proof after :=");
+  return { name, type, proof };
 }
 
 export class RealProofEngine implements ProofEngine {
@@ -280,7 +311,8 @@ export class RealProofEngine implements ProofEngine {
           if (!goal) throw new TacticError("No goals remain");
           // Tutorial theorem aliases are resolved at the UI adapter boundary;
           // the resulting Core term still crosses the normal Kernel check.
-          const term = argument === "add_succ" ? addSuccProof : parseArgument(argument, goal.context);
+          const term = argument === "add_succ" && !goal.context.some((entry) => entry.name === argument)
+            ? addSuccProof : parseArgument(argument, goal.context);
           this.session = this.session.exact(term);
           break;
         }
@@ -289,6 +321,15 @@ export class RealProofEngine implements ProofEngine {
           const goal = this.session.currentGoal();
           if (!goal) throw new TacticError("No goals remain");
           this.session = this.session.apply(parseArgument(argument, goal.context));
+          break;
+        }
+        case "have": {
+          const declaration = parseLocalLemma(argument);
+          const goal = this.session.currentGoal();
+          if (!goal) throw new TacticError("No goals remain");
+          const type = parseArgument(declaration.type, goal.context);
+          const proof = declaration.proof === undefined ? undefined : parseArgument(declaration.proof, goal.context);
+          this.session = this.session.have(declaration.name, type, proof);
           break;
         }
         case "rewrite": {
@@ -330,8 +371,6 @@ export const REAL_THEOREM_LIST = Object.values(REAL_THEOREMS).map((theorem, inde
   id: theorem.name,
   label: `${String(index + 1).padStart(2, "0")}  ${theorem.name}`,
 }));
-
-
 
 
 

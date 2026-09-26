@@ -1,6 +1,6 @@
 import { check, infer, show } from '../kernel/typecheck';
 import { definitionalEqual, normalize, shift, whnf } from '../kernel/reduction';
-import { Term, Nat, Zero, app, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
+import { Term, Type, Nat, Zero, app, eqRec, lambda, natRec, refl, succ, variable } from '../syntax/ast';
 import { Context, Goal, GoalId, ProofState, goal, proofState } from './state';
 import { MetaContext } from './metavariable/meta';
 import { UnificationError, UnificationTerm, substituteUnification, toCoreTerm, unify } from './unification';
@@ -288,6 +288,52 @@ export class TacticSession {
       if (definitionalEqual(entryType, hole.goal.type)) return this.exact(variable(hole.goal.context.length - 1 - index, entry.name));
     }
     throw new TacticError(`assumption found no local hypothesis matching ${show(hole.goal.type)}`);
+  }
+
+  /** Introduce a local lemma, with either a checked proof or a separate obligation. */
+  have(name: string, type: Term, proof?: Term): TacticSession {
+    const hole = this.firstHole();
+    if (!/^[A-Za-z_][A-Za-z0-9_']*$/.test(name) || ['Type', 'Nat', 'Succ', 'Eq', 'Refl'].includes(name)) {
+      throw new TacticError('have expects a non-reserved local identifier');
+    }
+    if (hole.goal.context.some((entry) => entry.name === name)) {
+      throw new TacticError(`Local name already exists: ${name}`);
+    }
+    // Validate in the old context: neither the declaration nor its proof may
+    // refer to the new binding. Allocate goals only after these checks succeed.
+    try {
+      const context = contextTypes(hole.goal.context);
+      check(context, type, Type);
+      if (proof !== undefined) check(context, proof, type);
+    } catch (error) {
+      throw new TacticError(error instanceof Error ? error.message : String(error));
+    }
+
+    const continuationGoal = goal(
+      [...hole.goal.context, { name, type }],
+      shift(hole.goal.type, 1),
+      hole.goal.caseName,
+    );
+    const continuation: Hole = { id: continuationGoal.id!, goal: continuationGoal, depth: hole.depth + 1 };
+    const replacements: Hole[] = [];
+    let argument: ProofNode;
+    if (proof === undefined) {
+      const lemmaGoal = goal(hole.goal.context, type, `have ${name}`);
+      const lemma: Hole = { id: lemmaGoal.id!, goal: lemmaGoal, depth: hole.depth };
+      replacements.push(lemma);
+      argument = { kind: 'hole', id: lemma.id };
+    } else {
+      argument = { kind: 'term', term: proof, depth: hole.depth };
+    }
+    replacements.push(continuation);
+    // The local declaration is ordinary function application in Core:
+    // ((name : type) => continuation) lemmaProof.
+    const root = replaceNode(this.root, hole.id, {
+      kind: 'app',
+      fn: { kind: 'lambda', domain: type, name, body: { kind: 'hole', id: continuation.id } },
+      arg: argument,
+    });
+    return this.withReplacement(hole.id, replacements, root);
   }
 
   apply(term: Term): TacticSession {

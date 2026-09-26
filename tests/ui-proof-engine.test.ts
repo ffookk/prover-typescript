@@ -83,9 +83,9 @@ test("real engine rejects an invalid tactic and preserves the proof state", () =
 test("real engine exposes dynamic tactic suggestions from the Core goal", () => {
   const engine = new RealProofEngine();
   engine.loadTheorem("identity");
-  assert.deepEqual(engine.tacticSuggestions().map((tactic) => tactic.id), ["intro", "exact", "apply"]);
+  assert.deepEqual(engine.tacticSuggestions().map((tactic) => tactic.id), ["intro", "exact", "apply", "have"]);
   assert.equal(engine.runTactic("intro").kind, "success");
-  assert.deepEqual(engine.tacticSuggestions().map((tactic) => tactic.id), ["rfl", "induction", "exact", "apply"]);
+  assert.deepEqual(engine.tacticSuggestions().map((tactic) => tactic.id), ["rfl", "induction", "exact", "apply", "have"]);
 });
 
 test("display projection keeps Pi binders out of context until intro", () => {
